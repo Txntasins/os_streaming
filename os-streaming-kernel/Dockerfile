@@ -17,7 +17,7 @@ COPY . /os
 RUN find scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} + 2>/dev/null || true
 
 # Build the kernel at image build time (fails early if the code doesn't compile)
-RUN make clean && make
+RUN make clean && make disk && make run
 
 # QEMU forwards guest port 80 -> container port 8080
 EXPOSE 8080
