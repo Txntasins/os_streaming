@@ -38,7 +38,7 @@ make disk && make run
 
 Then just head to `http://localhost:8080/movie.mp4` to watch it.
 
-## 📄 Useful Docs
+## Useful Docs
 
 * `docs/CROSS-PLATFORM.md` — How to run or view the project on Windows/macOS.
 * `docs/TEAM-COLLAB.md` — Workflow stuff (GitHub invites, branch protection, CI, and using Docker instead of WSL).

@@ -22,16 +22,16 @@
 #define LWIP_PROVIDE_ERRNO      1
 
 #define MEM_ALIGNMENT           8
-#define MEM_SIZE                (768 * 1024)
-#define MEMP_NUM_PBUF           64
-#define PBUF_POOL_SIZE          128
+#define MEM_SIZE                (2 * 1024 * 1024)
+#define MEMP_NUM_PBUF           128
+#define PBUF_POOL_SIZE          256
 #define TCP_MSS                 1460
 #define TCP_SND_BUF             (32 * TCP_MSS)
 #define TCP_WND                 (32 * TCP_MSS)
 #define TCP_SND_QUEUELEN        ((4 * (TCP_SND_BUF) + (TCP_MSS - 1)) / (TCP_MSS))
-#define MEMP_NUM_TCP_PCB        16
-#define MEMP_NUM_TCP_PCB_LISTEN 4
-#define MEMP_NUM_TCP_SEG        256
+#define MEMP_NUM_TCP_PCB        48
+#define MEMP_NUM_TCP_PCB_LISTEN 8
+#define MEMP_NUM_TCP_SEG        512
 
 #define LWIP_RAND()             (lwip_rand32())
 #ifdef __ASSEMBLER__

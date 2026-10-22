@@ -3,32 +3,818 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OS Streaming Kernel</title>
+<title>OS StreamFlix — Custom AArch64 Kernel Streaming</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; background: #111; color: #eee; }
-  h1 { font-size: 1.4rem; } a { color: #7cc4ff; }
-  video { width: 100%; background: #000; border-radius: 8px; }
-  pre { background: #1c1c1c; padding: .8rem; border-radius: 8px; overflow-x: auto; }
-  .muted { color: #999; font-size: .9rem; }
+  :root {
+    --bg: #0b0d12;
+    --panel: #141821;
+    --panel-hover: #1d2331;
+    --border: #262e40;
+    --accent: #e50914;
+    --accent-blue: #38bdf8;
+    --text: #f3f4f6;
+    --muted: #9ca3af;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1.5rem;
+    background: rgba(11, 13, 18, 0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+  }
+  .brand-badge {
+    background: var(--accent);
+    color: #fff;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    max-width: 420px;
+  }
+  .search-box input, .search-box select {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .search-box input { width: 100%; }
+  .search-box input:focus { border-color: var(--accent-blue); }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.25rem 1.5rem 3rem;
+  }
+
+  .theater {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+  @media (max-width: 960px) {
+    .theater { grid-template-columns: 1fr; }
+  }
+
+  .player-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  video {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    display: block;
+  }
+  .buffer-bar-wrap {
+    background: #090b10;
+    padding: 0.45rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .buffer-track {
+    flex: 1;
+    min-width: 140px;
+    height: 6px;
+    background: #1f2937;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .buffer-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #10b981, #38bdf8);
+    transition: width 0.25s;
+  }
+  .player-info {
+    padding: 1rem 1.25rem;
+  }
+  .player-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .player-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+  .player-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn {
+    background: #232a3b;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .btn:hover { background: #2e374d; }
+  .btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.6rem 0;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .tag {
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--accent-blue);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .tag.green {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+  }
+  .player-desc {
+    margin: 0.4rem 0 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  .playlist-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    max-height: 560px;
+  }
+  .playlist-header {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  .playlist-items {
+    overflow-y: auto;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .upnext-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: 0.15s;
+  }
+  .upnext-item:hover { background: var(--panel-hover); }
+  .upnext-item.playing {
+    background: rgba(229, 9, 20, 0.14);
+    border-color: var(--accent);
+  }
+  .upnext-thumb {
+    width: 96px;
+    height: 56px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.75rem;
+    color: #fff;
+    position: relative;
+  }
+  .upnext-duration {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(0,0,0,0.8);
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+  }
+  .upnext-meta {
+    overflow: hidden;
+    flex: 1;
+  }
+  .upnext-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .upnext-sub {
+    font-size: 0.76rem;
+    color: var(--muted);
+    margin-top: 0.2rem;
+  }
+
+  .collections-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .collection-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .tab-btn {
+    background: var(--panel);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); border-color: #4b5563; }
+  .tab-btn.active {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .video-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    display: flex;
+    flex-direction: column;
+  }
+  .video-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent-blue);
+  }
+  .card-banner {
+    height: 140px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    color: #fff;
+  }
+  .card-badge {
+    align-self: flex-start;
+    background: rgba(0, 0, 0, 0.65);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .card-play-icon {
+    align-self: center;
+    font-size: 2rem;
+    opacity: 0.9;
+  }
+  .card-bottom-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    background: rgba(0,0,0,0.6);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+  }
+  .card-body {
+    padding: 0.85rem 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin: 0 0 0.35rem;
+  }
+  .card-desc {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin: 0 0 0.75rem;
+  }
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 0.55rem;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  @media (max-width: 820px) {
+    .status-grid { grid-template-columns: 1fr; }
+  }
+  .status-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+  }
+  .status-box h3 {
+    margin: 0 0 0.65rem;
+    font-size: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  pre {
+    margin: 0;
+    background: #090b10;
+    border: 1px solid var(--border);
+    padding: 0.85rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    color: #a7f3d0;
+  }
 </style>
 </head>
 <body>
-<h1>🎬 Served from a custom kernel (AArch64)</h1>
-<p class="muted">This page, the video, and the data below are served by our own kernel via virtio-net → lwIP → HTTP server</p>
 
-<video id="v" controls preload="metadata" src="/sample.mp4"></video>
-<p class="muted">The browser seeks the video using HTTP Range requests, which the in-kernel server supports</p>
+<header>
+  <div class="brand">
+    <span class="brand-badge">AArch64 OS</span>
+    <span>OS StreamFlix</span>
+  </div>
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search videos, filenames, or collections...">
+    <select id="sortSelect">
+      <option value="featured">Sort: Featured</option>
+      <option value="name">Sort: Title (A-Z)</option>
+      <option value="size">Sort: File Size</option>
+    </select>
+  </div>
+</header>
 
-<h2>Kernel Status</h2>
-<pre id="st">Loading...</pre>
+<div class="container">
+  <div class="theater">
+    <div class="player-card">
+      <video id="mainVideo" controls preload="metadata" playsinline></video>
+      <div class="buffer-bar-wrap">
+        <span id="bufferText">📦 Buffered: waiting for stream...</span>
+        <div class="buffer-track"><div class="buffer-fill" id="bufferFill"></div></div>
+        <span id="chunkInfo">Kernel Chunk: 1024 KB</span>
+      </div>
+      <div class="player-info">
+        <div class="player-top">
+          <h1 class="player-title" id="nowTitle">Loading video catalog...</h1>
+          <div class="player-actions">
+            <button class="btn" id="favBtn" onclick="toggleFavoriteCurrent()">⭐ Watchlist</button>
+            <button class="btn" id="autoNextBtn" onclick="toggleAutoNext()">🔁 Auto-Next: ON</button>
+            <button class="btn" onclick="rescanDisk()">🔄 Rescan Disk</button>
+            <select class="btn" id="chunkSelect" onchange="changeChunkSize(this.value)" title="Kernel HTTP 206 Buffer Chunk Size">
+              <option value="512">Buffer: 512 KB</option>
+              <option value="1024" selected>Buffer: 1 MB</option>
+              <option value="2048">Buffer: 2 MB</option>
+              <option value="4096">Buffer: 4 MB</option>
+            </select>
+            <select class="btn" id="speedSelect" onchange="changeSpeed(this.value)">
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1.0x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2.0x</option>
+            </select>
+          </div>
+        </div>
+        <div class="meta-tags" id="nowTags"></div>
+        <p class="player-desc" id="nowDesc">Served directly by our custom AArch64 kernel via virtio-net → lwIP → HTTPd (Chunked 206 Partial Content).</p>
+      </div>
+    </div>
+
+    <div class="playlist-panel">
+      <div class="playlist-header">
+        <span>📋 Video List (<span id="queueCount">0</span>)</span>
+        <span style="font-size:0.78rem;color:var(--muted)">Click to select</span>
+      </div>
+      <div class="playlist-items" id="playlistContainer"></div>
+    </div>
+  </div>
+
+  <div class="collections-bar">
+    <div class="collection-tabs" id="collectionTabs"></div>
+    <div style="font-size:0.85rem;color:var(--muted)" id="dbSummary">Database synced with tarfs</div>
+  </div>
+
+  <div class="video-grid" id="videoGrid"></div>
+
+  <div class="status-grid">
+    <div class="status-box">
+      <h3>
+        <span>⚡ Live Kernel Status (<code>/status</code>)</span>
+        <span style="font-size:0.75rem;color:var(--muted)">Polled every 3s</span>
+      </h3>
+      <pre id="kernelStatus">Connecting to kernel...</pre>
+    </div>
+    <div class="status-box">
+      <h3>
+        <span>🗄️ In-Kernel Video Database (<code>/api/videos</code> + <code>db.json</code>)</span>
+        <a href="/library" target="_blank" style="font-size:0.8rem;color:var(--accent-blue)">Open /library →</a>
+      </h3>
+      <pre id="dbInspector">Loading database...</pre>
+    </div>
+  </div>
+</div>
 
 <script>
-  async function refresh() {
-    try { document.getElementById('st').textContent = await (await fetch('/status')).text(); }
-    catch (e) { document.getElementById('st').textContent = 'Connection failed'; }
+let allVideos = [];
+let collections = [
+  { id: 'all', name: 'All Videos', icon: '🎬' },
+  { id: 'featured', name: 'Featured', icon: '🔥' },
+  { id: 'Video', name: 'Long Videos', icon: '🎞️' },
+  { id: 'music', name: 'Music & Rickroll', icon: '🎵' },
+  { id: 'demo', name: 'Kernel Demos', icon: '⚡' },
+  { id: 'watchlist', name: 'My Watchlist', icon: '⭐' }
+];
+let activeCollection = 'all';
+let currentVideo = null;
+let autoNext = true;
+let currentChunkKB = 1024;
+let watchlist = JSON.parse(localStorage.getItem('os_watchlist') || '[]');
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return (bytes / Math.pow(k, i)).toFixed(i > 1 ? 2 : 0) + ' ' + sizes[i];
+}
+
+function formatSec(s) {
+  if (!isFinite(s) || s < 0) return '0:00';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+async function rescanDisk() {
+  try {
+    await fetch('/api/rescan');
+    await initDatabase();
+    await refreshStatus();
+  } catch (e) {}
+}
+
+async function changeChunkSize(kb) {
+  try {
+    const r = await fetch('/api/chunk?kb=' + kb);
+    if (r.ok) {
+      const data = await r.json();
+      currentChunkKB = data.chunk_kb || kb;
+      document.getElementById('chunkInfo').textContent = `Kernel Chunk: ${currentChunkKB} KB`;
+      await refreshStatus();
+    }
+  } catch (e) {}
+}
+
+async function initDatabase() {
+  let dbMeta = { catalog: {} };
+  let diskVideos = [];
+
+  try {
+    const r = await fetch('/db.json');
+    if (r.ok) {
+      dbMeta = await r.json();
+      if (dbMeta.collections) collections = dbMeta.collections;
+    }
+  } catch (e) {}
+
+  try {
+    const r = await fetch('/api/videos');
+    if (r.ok) {
+      const data = await r.json();
+      diskVideos = data.videos || [];
+      if (data.chunk_kb) {
+        currentChunkKB = data.chunk_kb;
+        document.getElementById('chunkInfo').textContent = `Kernel Chunk: ${currentChunkKB} KB`;
+      }
+    }
+  } catch (e) {}
+
+  if (diskVideos.length === 0) {
+    diskVideos = [
+      { id: 0, filename: 'TEST.mp4', url: '/TEST.mp4', size: 84356672, mime: 'video/mp4' },
+      { id: 1, filename: 'sample.mp4', url: '/sample.mp4', size: 157640, mime: 'video/mp4' }
+    ];
   }
-  refresh(); setInterval(refresh, 2000);
+
+  const palette = ['#e50914', '#0284c7', '#8B5E3C', '#7c3aed', '#059669'];
+  allVideos = diskVideos.map((v, idx) => {
+    const meta = (dbMeta.catalog && dbMeta.catalog[v.filename]) || {};
+    return {
+      id: v.id !== undefined ? v.id : idx,
+      filename: v.filename,
+      url: v.url || ('/' + v.filename),
+      size: v.size || 0,
+      mime: v.mime || 'video/mp4',
+      title: meta.title || v.filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
+      collection: meta.collection || 'Video',
+      featured: meta.featured !== undefined ? meta.featured : true,
+      resolution: meta.resolution || 'H.264 MP4',
+      duration: meta.duration || 'Stream',
+      badge: meta.badge || 'CHUNKED STREAM',
+      accent: meta.accent || palette[idx % palette.length],
+      description: meta.description || `Streamed in ${currentChunkKB} KB HTTP 206 buffer chunks from tarfs disk image (${v.filename}).`
+    };
+  });
+
+  document.getElementById('dbInspector').textContent = JSON.stringify(
+    { total_videos: allVideos.length, chunk_kb: currentChunkKB, videos: allVideos },
+    null, 2
+  );
+
+  renderCollectionTabs();
+  renderAll();
+  if (!currentVideo && allVideos.length > 0) {
+    selectVideo(allVideos[0].filename, false);
+  }
+}
+
+function renderCollectionTabs() {
+  const container = document.getElementById('collectionTabs');
+  container.innerHTML = collections.map(c => `
+    <button class="tab-btn ${activeCollection === c.id ? 'active' : ''}"
+            onclick="setCollection('${c.id}')">
+      ${c.icon} ${c.name}
+    </button>
+  `).join('');
+}
+
+function setCollection(id) {
+  activeCollection = id;
+  renderCollectionTabs();
+  renderAll();
+}
+
+function getFilteredVideos() {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  const sort = document.getElementById('sortSelect').value;
+
+  let list = allVideos.filter(v => {
+    if (activeCollection === 'featured' && !v.featured) return false;
+    if (activeCollection === 'watchlist' && !watchlist.includes(v.filename)) return false;
+    if (activeCollection !== 'all' && activeCollection !== 'featured' && activeCollection !== 'watchlist') {
+      if (v.collection.toLowerCase() !== activeCollection.toLowerCase()) return false;
+    }
+    if (q) {
+      const hay = `${v.title} ${v.filename} ${v.collection} ${v.description}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (sort === 'name') {
+    list.sort((a, b) => a.title.localeCompare(b.title));
+  } else if (sort === 'size') {
+    list.sort((a, b) => b.size - a.size);
+  }
+  return list;
+}
+
+function renderAll() {
+  const filtered = getFilteredVideos();
+  document.getElementById('queueCount').textContent = filtered.length;
+  document.getElementById('dbSummary').textContent =
+    `Showing ${filtered.length} of ${allVideos.length} videos in database`;
+
+  const pl = document.getElementById('playlistContainer');
+  pl.innerHTML = filtered.map(v => {
+    const isPlaying = currentVideo && currentVideo.filename === v.filename;
+    const isFav = watchlist.includes(v.filename);
+    return `
+      <div class="upnext-item ${isPlaying ? 'playing' : ''}" onclick="selectVideo('${v.filename}', true)">
+        <div class="upnext-thumb" style="background: linear-gradient(135deg, ${v.accent}, #111827)">
+          <span>${isPlaying ? '▶ NOW' : '🎬 MP4'}</span>
+          <span class="upnext-duration">${v.duration}</span>
+        </div>
+        <div class="upnext-meta">
+          <div class="upnext-title">${isFav ? '⭐ ' : ''}${v.title}</div>
+          <div class="upnext-sub">${v.filename} • ${formatBytes(v.size)}</div>
+          <div class="upnext-sub" style="color:var(--accent-blue)">#${v.collection.toUpperCase()}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const grid = document.getElementById('videoGrid');
+  grid.innerHTML = filtered.map(v => {
+    const isPlaying = currentVideo && currentVideo.filename === v.filename;
+    const isFav = watchlist.includes(v.filename);
+    return `
+      <div class="video-card" onclick="selectVideo('${v.filename}', true)">
+        <div class="card-banner" style="background: linear-gradient(135deg, ${v.accent}, #0f172a)">
+          <span class="card-badge">${v.badge}</span>
+          <span class="card-play-icon">${isPlaying ? '🔊' : '▶️'}</span>
+          <div class="card-bottom-row">
+            <span>${v.resolution}</span>
+            <span>${v.duration}</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div>
+            <h4 class="card-title">${isFav ? '⭐ ' : ''}${v.title}</h4>
+            <p class="card-desc">${v.description}</p>
+          </div>
+          <div class="card-footer">
+            <span>📁 ${v.filename}</span>
+            <span>${formatBytes(v.size)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectVideo(filename, autoplay) {
+  const v = allVideos.find(item => item.filename === filename);
+  if (!v) return;
+  currentVideo = v;
+
+  const videoEl = document.getElementById('mainVideo');
+  if (videoEl.getAttribute('src') !== v.url) {
+    videoEl.pause();
+    videoEl.setAttribute('src', v.url);
+    videoEl.load();
+  }
+  if (autoplay) {
+    videoEl.play().catch(() => {});
+  }
+
+  document.getElementById('nowTitle').textContent = v.title;
+  document.getElementById('nowDesc').textContent = v.description;
+  document.getElementById('nowTags').innerHTML = `
+    <span class="tag">${v.collection.toUpperCase()}</span>
+    <span class="tag">${v.resolution}</span>
+    <span class="tag">File: ${v.filename} (${formatBytes(v.size)})</span>
+    <span class="tag green">HTTP 206 Chunked Buffer (${currentChunkKB} KB/req)</span>
+  `;
+
+  updateFavButton();
+  renderAll();
+}
+
+function updateBufferMeter() {
+  const videoEl = document.getElementById('mainVideo');
+  const dur = videoEl.duration;
+  const buf = videoEl.buffered;
+  if (!dur || !buf || buf.length === 0) {
+    document.getElementById('bufferText').textContent = '📦 Buffered: ready for playback';
+    document.getElementById('bufferFill').style.width = '0%';
+    return;
+  }
+  let end = 0;
+  const cur = videoEl.currentTime || 0;
+  for (let i = 0; i < buf.length; i++) {
+    if (buf.start(i) <= cur + 1 && buf.end(i) > end) {
+      end = buf.end(i);
+    }
+  }
+  if (end === 0) end = buf.end(buf.length - 1);
+  const ahead = Math.max(0, end - cur);
+  const pct = Math.min(100, (end / dur) * 100);
+  document.getElementById('bufferText').textContent =
+    `📦 Buffered: ${formatSec(end)} / ${formatSec(dur)} (+${ahead.toFixed(1)}s ahead)`;
+  document.getElementById('bufferFill').style.width = pct.toFixed(1) + '%';
+}
+
+function toggleFavoriteCurrent() {
+  if (!currentVideo) return;
+  const idx = watchlist.indexOf(currentVideo.filename);
+  if (idx >= 0) watchlist.splice(idx, 1);
+  else watchlist.push(currentVideo.filename);
+  localStorage.setItem('os_watchlist', JSON.stringify(watchlist));
+  updateFavButton();
+  renderAll();
+}
+
+function updateFavButton() {
+  const btn = document.getElementById('favBtn');
+  if (!currentVideo) return;
+  const isFav = watchlist.includes(currentVideo.filename);
+  btn.textContent = isFav ? '⭐ In Watchlist' : '☆ Add Watchlist';
+  btn.classList.toggle('active', isFav);
+}
+
+function toggleAutoNext() {
+  autoNext = !autoNext;
+  const btn = document.getElementById('autoNextBtn');
+  btn.textContent = `🔁 Auto-Next: ${autoNext ? 'ON' : 'OFF'}`;
+}
+
+function changeSpeed(rate) {
+  document.getElementById('mainVideo').playbackRate = parseFloat(rate);
+}
+
+const mainVideoEl = document.getElementById('mainVideo');
+mainVideoEl.addEventListener('progress', updateBufferMeter);
+mainVideoEl.addEventListener('timeupdate', updateBufferMeter);
+mainVideoEl.addEventListener('loadedmetadata', updateBufferMeter);
+mainVideoEl.addEventListener('ended', () => {
+  if (!autoNext || !currentVideo) return;
+  const list = getFilteredVideos();
+  const idx = list.findIndex(v => v.filename === currentVideo.filename);
+  if (idx >= 0 && idx + 1 < list.length) {
+    selectVideo(list[idx + 1].filename, true);
+  }
+});
+
+document.getElementById('searchInput').addEventListener('input', renderAll);
+document.getElementById('sortSelect').addEventListener('change', renderAll);
+
+async function refreshStatus() {
+  try {
+    const r = await fetch('/status');
+    if (r.ok) {
+      document.getElementById('kernelStatus').textContent = await r.text();
+    }
+  } catch (e) {
+    document.getElementById('kernelStatus').textContent = 'Connection lost (check QEMU or server)';
+  }
+}
+
+initDatabase();
+refreshStatus();
+setInterval(refreshStatus, 3000);
 </script>
-<p class="muted">You can add your own videos by placing the files in the www/ directory and running make disk (see README)</p>
 </body>
 </html>
