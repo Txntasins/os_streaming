@@ -1,0 +1,6 @@
+.git
+build
+disk.img
+*.o
+*.d
+.github
