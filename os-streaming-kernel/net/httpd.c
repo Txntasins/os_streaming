@@ -6,18 +6,18 @@
 #include "lwip/tcp.h"
 
 #define CHUNK 8192
-#define MAX_CONN 24                 /* cap on concurrent connections: prevents heap exhaustion from many clients */
+#define MAX_CONN 24                   /* cap on concurrent connections: prevents heap exhaustion from many clients */
 static volatile int nconn;
-static u8 iobuf[CHUNK];                                /* safe to share: every callback runs on the single net thread */
+static u8 iobuf[CHUNK];               /* safe to share: every callback runs on the single net thread */
 
 struct hs {
     struct tcp_pcb *pcb;
-    char req[1024];
+    char req[4096];                   /* 4 KB so Cloudflare Tunnel (Cf-*) + browser headers never get cut off */
     unsigned req_len;
     int started;
-    int keep_alive;                                    /* HTTP/1.1 persistent connection: serve multiple requests over 1 TCP connection */
+    int keep_alive;                   /* HTTP/1.1 persistent connection: serve multiple requests per pcb */
     const struct tar_file *file;
-    char *mem;                                         /* in-memory body (status page, 404, etc.) */
+    char *mem;                        /* in-memory body (status page, 404, etc.) */
     u64 pos, remaining;
     int polls;
 };
@@ -29,7 +29,7 @@ static const char *mime(const char *name) {
     if (!strcmp(ext, ".html") || !strcmp(ext, ".htm")) return "text/html; charset=utf-8";
     if (!strcmp(ext, ".css"))  return "text/css";
     if (!strcmp(ext, ".js"))   return "text/javascript";
-    if (!strcmp(ext, ".json")) return "application/json";
+    if (!strcmp(ext, ".json")) return "application/json; charset=utf-8";
     if (!strcmp(ext, ".txt") || !strcmp(ext, ".md")) return "text/plain; charset=utf-8";
     if (!strcmp(ext, ".mp4") || !strcmp(ext, ".m4v")) return "video/mp4";
     if (!strcmp(ext, ".webm")) return "video/webm";
@@ -46,8 +46,7 @@ static const char *mime(const char *name) {
     return "application/octet-stream";
 }
 
-
-/* ---------- helpers for building HTML pages in memory ---------- */
+/* ---------- helpers for building HTML/JSON pages in memory --------- */
 struct sbuf { char *p; size_t cap, len; };
 
 static void sb_put(struct sbuf *b, char c) {
@@ -60,7 +59,7 @@ static void sb_add(struct sbuf *b, const char *fmt, ...) {
     va_end(ap);
     if (n > 0) b->len += ((size_t)n < room) ? (size_t)n : room - 1;
 }
-static void sb_esc(struct sbuf *b, const char *s) {                /* escape HTML special characters */
+static void sb_esc(struct sbuf *b, const char *s) {         /* escape HTML special characters */
     for (; *s; s++) {
         switch (*s) {
         case '&': sb_add(b, "&amp;"); break;
@@ -71,7 +70,13 @@ static void sb_esc(struct sbuf *b, const char *s) {                /* escape HTM
         }
     }
 }
-static void sb_enc(struct sbuf *b, const char *s) {                /* percent-encode a filename (handles Thai text/spaces) */
+static void sb_json_esc(struct sbuf *b, const char *s) {    /* escape JSON string characters */
+    for (; *s; s++) {
+        if (*s == '"' || *s == '\\') { sb_put(b, '\\'); sb_put(b, *s); }
+        else if ((unsigned char)*s >= 0x20) sb_put(b, *s);
+    }
+}
+static void sb_enc(struct sbuf *b, const char *s) {         /* percent-encode a filename (handles Thai text) */
     for (; *s; s++) {
         unsigned char c = (unsigned char)*s;
         if (isalpha(c) || isdigit(c) || c == '-' || c == '_' || c == '.' || c == '~') sb_put(b, (char)c);
@@ -101,7 +106,7 @@ static int is_audio(const char *name) {
     const char *e = ext_of(name);
     return e && (!strcmp(e, ".mp3") || !strcmp(e, ".m4a") || !strcmp(e, ".aac"));
 }
-static int is_playable(const char *name) {                          /* files a browser (including Safari on iPhone/iPad) can play */
+static int is_playable(const char *name) {            /* files a browser (including Safari on iPhone) can play directly */
     const char *e = ext_of(name);
     return e && (!strcmp(e, ".mp4") || !strcmp(e, ".m4v") || !strcmp(e, ".webm") || is_audio(name));
 }
@@ -118,7 +123,7 @@ static void hs_close(struct hs *hs, struct tcp_pcb *pcb) {
     hs_free(hs);
 }
 
-/* called once a response has been fully sent: close the connection, or reset state and wait for the next request (keep-alive) */
+/* called once a response has been fully sent: close the connection, or reset state and wait for the next request */
 static void request_done(struct hs *hs, struct tcp_pcb *pcb) {
     if (!hs->keep_alive) { hs_close(hs, pcb); return; }
     if (hs->mem) { kfree(hs->mem); hs->mem = 0; }
@@ -141,7 +146,7 @@ static void send_more(struct hs *hs, struct tcp_pcb *pcb) {
         }
         u8_t flags = TCP_WRITE_FLAG_COPY | (hs->remaining > chunk ? TCP_WRITE_FLAG_MORE : 0);
         err_t e = tcp_write(pcb, iobuf, (u16_t)chunk, flags);
-        if (e == ERR_MEM) break;                       /* send queue full: wait for the sent callback */
+        if (e == ERR_MEM) break;                    /* send queue full: wait for the sent callback */
         if (e != ERR_OK) { hs_close(hs, pcb); return; }
         hs->pos += chunk; hs->remaining -= chunk;
     }
@@ -176,18 +181,39 @@ static void make_status(struct hs *hs) {
     char ip[32]; net_get_ip(ip, sizeof(ip));
     int n = ksnprintf(hs->mem, 1024,
         "OS Streaming Kernel (AArch64)\n"
-        "uptime        : %lu ms\n"
-        "ip            : %s\n"
-        "pages free    : %lu / %lu (4 KB each)\n"
-        "kernel heap   : %lu bytes in use\n"
+        "uptime      : %lu ms\n"
+        "ip          : %s\n"
+        "pages free  : %lu / %lu (4 KB each)\n"
+        "kernel heap : %lu bytes in use\n"
         "files on disk : %d\n"
-        "scheduler     : preemptive round-robin, 10 ms slice (%lu ticks)\n"
-        "disk sectors  : %lu\n",
+        "scheduler   : preemptive round-robin, 10 ms slice (%lu ticks)\n"
+        "disk sectors : %lu\n",
         (unsigned long)uptime_ms(), ip, (unsigned long)pmm_free_pages(), (unsigned long)pmm_total_pages(),
         (unsigned long)kheap_used(), tarfs_count(), (unsigned long)timer_ticks(), (unsigned long)blk_sectors());
     hs->remaining = (u64)n;
 }
 
+static void make_videos_json(struct hs *hs) {
+    hs->mem = kmalloc(8192);
+    if (!hs->mem) return;
+    struct sbuf b = { hs->mem, 8192, 0 };
+    hs->mem[0] = 0;
+    sb_add(&b, "{\"kernel\":\"OS-Streaming-Kernel\",\"uptime_ms\":%lu,\"videos\":[", (unsigned long)uptime_ms());
+    int n = tarfs_count(), first = 1;
+    for (int i = 0; i < n; i++) {
+        const struct tar_file *f = tarfs_get(i);
+        if (!f || !is_playable(f->name)) continue;
+        if (!first) sb_put(&b, ',');
+        first = 0;
+        sb_add(&b, "{\"id\":%d,\"filename\":\"", i);
+        sb_json_esc(&b, f->name);
+        sb_add(&b, "\",\"url\":\"/");
+        sb_enc(&b, f->name);
+        sb_add(&b, "\",\"size\":%lu,\"mime\":\"%s\"}", (unsigned long)f->size, mime(f->name));
+    }
+    sb_add(&b, "]}\n");
+    hs->remaining = b.len;
+}
 
 static const char PAGE_HEAD[] =
     "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
@@ -215,7 +241,7 @@ static void make_library(struct hs *hs) {
         sb_add(&b, "</a> <span class=\"m\">%lu.%lu MB</span></li>",
                (unsigned long)(f->size >> 20), (unsigned long)(((f->size & 0xFFFFF) * 10) >> 20));
     }
-    sb_add(&b, "</ul><p class=\"m\"><a href=\"/status\">/status</a> &middot; served by a custom kernel</p></body></html>");
+    sb_add(&b, "</ul><p class=\"m\"><a href=\"/status\">status</a> &middot; served by a custom kernel</p></body></html>");
     hs->remaining = b.len;
 }
 
@@ -251,7 +277,7 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
     if (sp) *sp = 0;
 
     for (char *p = line_end + 2; p < hs->req + hs->req_len; ) {
-        if (strncasecmp(p, "connection:", 11) == 0) {
+        if (!strncasecmp(p, "connection:", 11)) {
             char *v = p + 11; while (*v == ' ') v++;
             if (!strncasecmp(v, "close", 5)) hs->keep_alive = 0;
             else if (!strncasecmp(v, "keep-alive", 10)) hs->keep_alive = 1;
@@ -263,7 +289,7 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
     }
     char *query = 0, *q = strchr(path, '?');
     if (q) { *q = 0; query = q + 1; }
-    url_decode(path);                                          /* %E0%B8... and %20 -> the real filename */
+    url_decode(path);                                 /* %E0%B8... and %20 -> the real filename */
     if (!strcmp(path, "/")) path = tarfs_find("index.html") ? "/index.html" : "/library";
 
     u64 rs = 0, re = 0; int has_range = 0, open_end = 0;
@@ -272,7 +298,7 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
         if (strncasecmp(p, "range: bytes=", 13) == 0) {
             p += 13;
             has_range = 1;
-            if (*p == '-') {                                    /* suffix: bytes=-N */
+            if (*p == '-') {                           /* suffix: bytes=-N */
                 u64 nlast = 0; p++; int nd = 0;
                 while (isdigit(*p) && nd++ < 18) nlast = nlast * 10 + (*p++ - '0');
                 rs = nlast; open_end = 2;               /* bytes=-N: last N bytes (resolved once we know the file size) */
@@ -295,6 +321,21 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
         respond(hs, pcb, 200, "text/plain; charset=utf-8", hs->remaining, 0, hs->remaining, 0, head_only);
         return;
     }
+    if (!strcmp(path, "/api/videos")) {
+        make_videos_json(hs);
+        if (!hs->mem) { hs_close(hs, pcb); return; }
+        respond(hs, pcb, 200, "application/json; charset=utf-8", hs->remaining, 0, hs->remaining, 0, head_only);
+        return;
+    }
+    if (!strcmp(path, "/api/rescan")) {
+        int nf = tarfs_rescan();
+        hs->mem = kmalloc(128);
+        if (!hs->mem) { hs_close(hs, pcb); return; }
+        int n = ksnprintf(hs->mem, 128, "{\"status\":\"ok\",\"files\":%d}\n", nf < 0 ? 0 : nf);
+        hs->remaining = (u64)n;
+        respond(hs, pcb, 200, "application/json; charset=utf-8", hs->remaining, 0, hs->remaining, 0, head_only);
+        return;
+    }
     if (!strcmp(path, "/library")) {
         make_library(hs);
         if (!hs->mem) { hs_close(hs, pcb); return; }
@@ -303,7 +344,7 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
     }
     if (!strcmp(path, "/watch")) {
         char name[100] = "";
-        for (char *p = query; p && *p; ) {                      /* look for f=<filename> in the query string */
+        for (char *p = query; p && *p; ) {                   /* look for f=<filename> in the query string */
             if (p[0] == 'f' && p[1] == '=') {
                 size_t i = 0; p += 2;
                 while (*p && *p != '&' && i < sizeof(name) - 1) name[i++] = *p++;
@@ -331,15 +372,15 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
     if (!has_range) { respond(hs, pcb, 200, mime(f->name), f->size, 0, f->size, 0, head_only); return; }
     if (open_end == 2) { u64 nlast = rs; rs = nlast > f->size ? 0 : f->size - nlast; re = f->size - 1; }
     else if (open_end == 1 || re >= f->size) re = f->size - 1;
-    if (rs >= f->size || rs > re) { respond(hs, pcb, 416, "text/plain", f->size, 0, 0, 0, 1); return; }
+    if (rs >= f->size || rs > re) { respond(hs, pcb, 416, "text/plain", f->size, 0, 0, 1, head_only); return; }
     respond(hs, pcb, 206, mime(f->name), f->size, rs, re - rs + 1, 1, head_only);
 }
 
 static err_t cb_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err) {
     struct hs *hs = arg;
-    if (!p) { if (hs) hs_close(hs, pcb); return ERR_OK; }                 /* the other side closed the connection */
+    if (!p) { if (hs) hs_close(hs, pcb); return ERR_OK; }           /* the other side closed the connection */
     if (err != ERR_OK || !hs) { pbuf_free(p); return ERR_OK; }
-    hs->polls = 0;                                                        /* data arrived = still active, not idle */
+    hs->polls = 0;                                                   /* data arrived = still active, not idle */
     tcp_recved(pcb, p->tot_len);
     if (!hs->started) {
         unsigned room = sizeof(hs->req) - 1 - hs->req_len;
@@ -357,7 +398,7 @@ static err_t cb_sent(void *arg, struct tcp_pcb *pcb, u16_t len) {
     (void)len;
     struct hs *hs = arg;
     if (!hs) return ERR_OK;
-    hs->polls = 0;                                                        /* data actually sent = still active */
+    hs->polls = 0;                                                   /* data actually sent = still active */
     if (hs->started) send_more(hs, pcb);
     return ERR_OK;
 }
@@ -365,7 +406,7 @@ static err_t cb_sent(void *arg, struct tcp_pcb *pcb, u16_t len) {
 static err_t cb_poll(void *arg, struct tcp_pcb *pcb) {
     struct hs *hs = arg;
     if (!hs) return ERR_OK;
-    if (++hs->polls > 30) { hs_close(hs, pcb); return ERR_ABRT; }        /* ~60s with no progress */
+    if (++hs->polls > 30) { hs_close(hs, pcb); return ERR_ABRT; }       /* ~60s with no progress */
     if (hs->started) send_more(hs, pcb);
     return ERR_OK;
 }
@@ -375,7 +416,7 @@ static void cb_err(void *arg, err_t err) { (void)err; if (arg) hs_free(arg); }
 static err_t cb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
     (void)arg;
     if (err != ERR_OK) return err;
-    if (nconn >= MAX_CONN) { tcp_abort(pcb); return ERR_ABRT; }   /* full: reject new connections instead of exhausting the heap */
+    if (nconn >= MAX_CONN) { tcp_abort(pcb); return ERR_ABRT; }   /* full: reject new connections instead of exhausting memory */
     struct hs *hs = kmalloc(sizeof(*hs));
     if (!hs) return ERR_MEM;
     nconn++;

@@ -93,6 +93,7 @@ int  blk_init(void);
 u64  blk_sectors(void);
 int  blk_read(u64 sector, unsigned count, void *buf);
 int  tarfs_init(void);
+int  tarfs_rescan(void);   // hot-reload the file list without rebooting
 struct tar_file { char name[100]; u64 size; u64 offset; };
 const struct tar_file *tarfs_find(const char *name);
 const struct tar_file *tarfs_get(int i);

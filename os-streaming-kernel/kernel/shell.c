@@ -10,6 +10,7 @@ static void cmd_help(void) {
     kprintf("  mem             memory status (page allocator + heap)\n");
     kprintf("  ps              list of threads / processes\n");
     kprintf("  ls              files on disk (tar)\n");
+    kprintf("  rescan          reload the file list after adding/replacing a video (no reboot needed)\n");
     kprintf("  cat <file>      display file contents (text)\n");
     kprintf("  ifconfig        device IP address\n");
     kprintf("  run             run 1 user program (EL0) (type 'run 3' = 3 programs simultaneously)\n");
@@ -80,6 +81,7 @@ static void run_line(char *line) {
     else if (!strcmp(line, "ifconfig")) { char ip[32]; net_get_ip(ip, sizeof(ip)); kprintf("  ip %s\n", ip); }
     else if (!strcmp(line, "run"))      cmd_run(*arg >= '1' && *arg <= '8' ? *arg - '0' : 1);
     else if (!strcmp(line, "crash"))    cmd_crash();
+    else if (!strcmp(line, "rescan"))   { int n = tarfs_rescan(); kprintf("  %d file(s) now visible\n", n < 0 ? 0 : n); }
     else kprintf("  Unknown command '%s' (type help)\n", line);
 }
 

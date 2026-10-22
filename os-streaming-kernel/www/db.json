@@ -1,0 +1,46 @@
+{
+  "platform": "OS StreamFlix (AArch64 Kernel + Pi 5)",
+  "version": "2.0",
+  "collections": [
+    { "id": "all", "name": "All Videos", "icon": "🎬" },
+    { "id": "featured", "name": "Featured", "icon": "🔥" },
+    { "id": "music", "name": "Music & Rickroll", "icon": "🎵" },
+    { "id": "demo", "name": "Kernel Demos", "icon": "⚡" },
+    { "id": "watchlist", "name": "My Watchlist", "icon": "⭐" }
+  ],
+  "catalog": {
+    "TEST.mp4": {
+      "title": "Rick Astley - Never Gonna Give You Up (HD Stream)",
+      "collection": "music",
+      "featured": true,
+      "resolution": "720p H.264/AAC",
+      "duration": "3:33",
+      "year": 1987,
+      "badge": "FEATURED STREAM",
+      "accent": "#e50914",
+      "description": "Full-length 84 MB MP4 video streamed directly from custom AArch64 kernel tarfs via lwIP TCP + HTTP 206 Range requests."
+    },
+    "sample.mp4": {
+      "title": "Kernel Boot & Virtio-Net Streaming Sample",
+      "collection": "demo",
+      "featured": true,
+      "resolution": "480p H.264",
+      "duration": "0:15",
+      "year": 2026,
+      "badge": "KERNEL TEST",
+      "accent": "#00b4d8",
+      "description": "Lightweight test clip verifying zero-Linux bare-metal HTTP streaming, instant byte-range seeking, and keep-alive reuse."
+    },
+    "TEST1HR.mp4":{
+      "title": "Conclusion of FOR HONOR by WARCRY FROM Youtube",
+      "collection": "Video",
+      "featured": true,
+      "resolution": "360p H.264/AAC",
+      "duration": "01:16:58",
+      "year": 2026,
+      "badge": "FEATURED STREAM",
+      "accent": "8B5E3C",
+      "description": "Long length clip for testing, can it works with long video via lwip TCP + HTTP 206 Range request, and testing the resolution with delay or glitch."
+    }
+  }
+}

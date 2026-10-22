@@ -14,9 +14,14 @@ static u64 parse_octal(const char *s, int n) {
     return v;
 }
 
-int tarfs_init(void) {
+/* Re-scans the disk's directory (file list) without rebooting. Safe to call
+   again at runtime: the admin reruns scripts/mkdisk.sh on the host (same
+   fixed-size disk.img, same backing inode QEMU already has open), then types
+   "rescan" in the shell. Existing playback in progress is unaffected: it
+   already holds onto its own (struct tar_file *) and offset. */
+int tarfs_rescan(void) {
     if (!blk_sectors()) return -1;
-    bounce = pmm_alloc(BOUNCE_SECTORS * 512 / PAGE_SIZE);
+    nfiles = 0;
     u64 sector = 0, total = blk_sectors();
     static u8 hdr[512] __attribute__((aligned(16)));
     while (sector < total && nfiles < MAX_FILES) {
@@ -38,6 +43,13 @@ int tarfs_init(void) {
     kprintf("[fs]   tarfs: found %d files\n", nfiles);
     for (int i = 0; i < nfiles; i++) kprintf("         %10lu  %s\n", (unsigned long)files[i].size, files[i].name);
     return nfiles;
+}
+
+int tarfs_init(void) {
+    if (!blk_sectors()) return -1;
+    bounce = pmm_alloc(BOUNCE_SECTORS * 512 / PAGE_SIZE);   /* one-time: never re-alloc on rescan */
+    if (!bounce) return -1;
+    return tarfs_rescan();
 }
 
 int tarfs_count(void) { return nfiles; }
