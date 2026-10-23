@@ -47,6 +47,20 @@ int  ksnprintf(char *buf, size_t n, const char *fmt, ...);
 int  kvsnprintf(char *buf, size_t n, const char *fmt, va_list ap);
 void panic(const char *msg) __attribute__((noreturn));
 
+/* Trigger ARM64 PSCI SYSTEM_RESET (0x84000009) so QEMU & host supervisor restart cleanly */
+static inline void sys_restart(void) {
+    kprintf("\n[HOST_RESTART_REQUESTED]\n");
+#ifdef __aarch64__
+    __asm__ volatile(
+        "movz x0, #0x0009\n"
+        "movk x0, #0x8400, lsl #16\n"
+        "hvc  #0\n"
+        ::: "x0", "memory"
+    );
+    for (;;) __asm__ volatile("wfe");
+#endif
+}
+
 /* ---------- drivers ---------- */
 void uart_putc(char c);
 int  uart_getc(void);                 /* -1 if no character is available */
@@ -93,7 +107,8 @@ int  blk_init(void);
 u64  blk_sectors(void);
 int  blk_read(u64 sector, unsigned count, void *buf);
 int  tarfs_init(void);
-int  tarfs_rescan(void);   // hot-reload the file list without rebooting
+int  tarfs_rescan(void);         /* hot-reload the file list (verbose) */
+int  tarfs_rescan_quiet(void);   /* hot-reload the file list (silent, auto-called on ls & HTTP) */
 struct tar_file { char name[100]; u64 size; u64 offset; };
 const struct tar_file *tarfs_find(const char *name);
 const struct tar_file *tarfs_get(int i);

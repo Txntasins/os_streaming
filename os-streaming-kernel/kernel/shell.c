@@ -9,8 +9,9 @@ static void cmd_help(void) {
     kprintf("  uptime          system uptime\n");
     kprintf("  mem             memory status (page allocator + heap)\n");
     kprintf("  ps              list of threads / processes\n");
-    kprintf("  ls              files on disk (tar)\n");
-    kprintf("  rescan          reload the file list after adding/replacing a video (no reboot needed)\n");
+    kprintf("  ls              files on disk (auto-syncs with disk.img)\n");
+    kprintf("  rescan          reload the file list after adding/deleting a video (no reboot needed)\n");
+    kprintf("  restart         restart kernel server & Cloudflare Tunnel (rebuilds disk.img + db.json)\n");
     kprintf("  cat <file>      display file contents (text)\n");
     kprintf("  ifconfig        device IP address\n");
     kprintf("  run             run 1 user program (EL0) (type 'run 3' = 3 programs simultaneously)\n");
@@ -25,6 +26,8 @@ static void cmd_mem(void) {
 }
 
 static void cmd_ls(void) {
+    /* Always do a silent header rescan so deleted/added files reflect immediately */
+    tarfs_rescan_quiet();
     int n = tarfs_count();
     if (!n) { kprintf("  (No disk or no files)\n"); return; }
     for (int i = 0; i < n; i++) {
@@ -82,6 +85,12 @@ static void run_line(char *line) {
     else if (!strcmp(line, "run"))      cmd_run(*arg >= '1' && *arg <= '8' ? *arg - '0' : 1);
     else if (!strcmp(line, "crash"))    cmd_crash();
     else if (!strcmp(line, "rescan"))   { int n = tarfs_rescan(); kprintf("  %d file(s) now visible\n", n < 0 ? 0 : n); }
+    else if (!strcmp(line, "restart") || !strcmp(line, "reboot")) {
+        kprintf("  [restart] Syncing disk.img + db.json and restarting server & Cloudflare tunnel...\n");
+        kprintf("\n[HOST_RESTART_REQUESTED]\n");
+        thread_sleep_ms(800);
+        sys_restart();
+    }
     else kprintf("  Unknown command '%s' (type help)\n", line);
 }
 

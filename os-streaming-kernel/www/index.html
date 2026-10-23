@@ -440,6 +440,7 @@
             <button class="btn" id="favBtn" onclick="toggleFavoriteCurrent()">⭐ Watchlist</button>
             <button class="btn" id="autoNextBtn" onclick="toggleAutoNext()">🔁 Auto-Next: ON</button>
             <button class="btn" onclick="rescanDisk()">🔄 Rescan Disk</button>
+            <button class="btn" onclick="restartServer()">⚡ Restart Server</button>
             <select class="btn" id="chunkSelect" onchange="changeChunkSize(this.value)" title="Kernel HTTP 206 Buffer Chunk Size">
               <option value="512">Buffer: 512 KB</option>
               <option value="1024" selected>Buffer: 1 MB</option>
@@ -525,6 +526,15 @@ function formatSec(s) {
   const sec = Math.floor(s % 60);
   if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+async function restartServer() {
+  if (!confirm('Restart Kernel HTTP Server & Cloudflare Tunnel now?')) return;
+  try {
+    document.getElementById('kernelStatus').textContent = 'Restarting kernel & syncing disk.img...';
+    await fetch('/api/restart');
+  } catch (e) {}
+  setTimeout(() => { initDatabase(); refreshStatus(); }, 2500);
 }
 
 async function rescanDisk() {
