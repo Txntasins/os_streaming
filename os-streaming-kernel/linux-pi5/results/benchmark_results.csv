@@ -1,0 +1,11 @@
+system,clients,total_reqs,ok_reqs,dropped,throughput_mb_s,avg_latency_ms,p95_latency_ms
+Linux_Nginx,1,5,0,5,0.0,0.0,0.0
+Custom_OS,1,5,5,0,23.09,6.41,6.79
+Linux_Nginx,2,10,0,10,0.0,0.0,0.0
+Custom_OS,2,10,10,0,30.29,9.54,10.84
+Linux_Nginx,4,20,0,20,0.0,0.0,0.0
+Custom_OS,4,20,20,0,32.75,17.6,18.58
+Linux_Nginx,8,40,0,40,0.0,0.0,0.0
+Custom_OS,8,40,40,0,29.13,39.63,48.55
+Linux_Nginx,16,80,0,80,0.0,0.0,0.0
+Custom_OS,16,80,80,0,27.13,84.31,94.0

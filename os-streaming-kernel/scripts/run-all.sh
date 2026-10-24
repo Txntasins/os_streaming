@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
+# ==============================================================================
 # Supervisor script for OS Streaming Kernel:
 # 1. Watches www/ every 2s in the background: if you add or delete a video in www/,
 #    it automatically updates www/db.json and disk.img in-place without restarting!
 # 2. Manages Cloudflare Tunnel ( restarts it automatically when 'os> restart' is typed
 #    or when './restart.sh' / 'make restart' is run ).
+# ==============================================================================
 set -e
 cd "$(dirname "$0")/.."
 
