@@ -1,0 +1,18 @@
+{
+  "system": "System 1: Linux + Raspberry Pi 5 (Nginx epoll + HLS + Direct Play)",
+  "hls_master": "/media/master.m3u8",
+  "hls_360p": "/media/hls_360p/index.m3u8",
+  "hls_720p": "/media/hls_720p/index.m3u8",
+  "mp4_files": [
+    {
+      "filename": "TEST.mp4",
+      "url": "/media/TEST.mp4",
+      "size": 84426644
+    },
+    {
+      "filename": "sample.mp4",
+      "url": "/media/sample.mp4",
+      "size": 157639
+    }
+  ]
+}

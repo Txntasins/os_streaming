@@ -23,7 +23,8 @@ struct hs {
     unsigned req_len;
     int started;
     int keep_alive;                          /* HTTP/1.1 persistent connection: serve multiple requests per pcb */
-    const struct tar_file *file;
+    int has_file;
+    struct tar_file fcopy;                    /* local copy so live tarfs_rescan never breaks active streams */
     char *mem;                               /* in-memory body (status page, 404, etc.) */
     u64 pos, remaining;
     int polls;
@@ -134,7 +135,7 @@ static void hs_close(struct hs *hs, struct tcp_pcb *pcb) {
 static void request_done(struct hs *hs, struct tcp_pcb *pcb) {
     if (!hs->keep_alive) { hs_close(hs, pcb); return; }
     if (hs->mem) { kfree(hs->mem); hs->mem = 0; }
-    hs->file = 0; hs->started = 0; hs->req_len = 0; hs->polls = 0;
+    hs->has_file = 0; hs->started = 0; hs->req_len = 0; hs->polls = 0;
 }
 
 /* send as much as the TCP send window currently allows */
@@ -144,8 +145,8 @@ static void send_more(struct hs *hs, struct tcp_pcb *pcb) {
         if (space < 256) break;
         size_t chunk = hs->remaining < CHUNK ? (size_t)hs->remaining : CHUNK;
         if (chunk > space) chunk = space;
-        if (hs->file) {
-            int r = tarfs_read(hs->file, hs->pos, iobuf, chunk);
+        if (hs->has_file) {
+            int r = tarfs_read(&hs->fcopy, hs->pos, iobuf, chunk);
             if (r <= 0) { hs_close(hs, pcb); return; }
             chunk = (size_t)r;
         } else {
@@ -172,7 +173,7 @@ static void respond(struct hs *hs, struct tcp_pcb *pcb, int code, const char *ct
                       "Server: OS-Streaming-Kernel\r\n"
                       "Content-Type: %s\r\n"
                       "Accept-Ranges: bytes\r\n"
-                      "Cache-Control: no-transform\r\n"
+                      "Cache-Control: no-cache, no-store, no-transform\r\n"
                       "Connection: %s\r\n"
                       "Content-Length: %lu\r\n",
                       code, msg, ctype, keep_alive ? "keep-alive" : "close", (unsigned long)len);
@@ -210,6 +211,7 @@ static void make_status(struct hs *hs) {
 }
 
 static void make_videos_json(struct hs *hs) {
+    tarfs_rescan_quiet();
     hs->mem = kmalloc(8192);
     if (!hs->mem) return;
     struct sbuf b = { hs->mem, 8192, 0 };
@@ -242,6 +244,7 @@ static const char PAGE_HEAD[] =
     "</style></head><body>";
 
 static void make_library(struct hs *hs) {
+    tarfs_rescan_quiet();
     hs->mem = kmalloc(16384);
     if (!hs->mem) return;
     struct sbuf b = { hs->mem, 16384, 0 };
@@ -344,6 +347,10 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
         respond(hs, pcb, 200, "application/json; charset=utf-8", hs->remaining, 0, hs->remaining, 0, head_only);
         return;
     }
+    if (!strcmp(path, "/api/restart")) {
+        sys_restart();
+        return;
+    }
     if (!strcmp(path, "/api/rescan")) {
         int nf = tarfs_rescan();
         hs->mem = kmalloc(128);
@@ -392,6 +399,7 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
             return;
         }
     }
+    if (!strcmp(path, "/db.json")) tarfs_rescan_quiet();
     const struct tar_file *f = tarfs_find(path);
     if (!f) {
         static const char body[] = "404 Not Found\n";
@@ -400,7 +408,8 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
         respond(hs, pcb, 404, "text/plain", sizeof(body) - 1, 0, sizeof(body) - 1, 0, head_only);
         return;
     }
-    hs->file = f;
+    hs->fcopy = *f;
+    hs->has_file = 1;
 
     if (!has_range) {
         respond(hs, pcb, 200, mime(f->name), f->size, 0, f->size, 0, head_only);
