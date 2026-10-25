@@ -51,6 +51,9 @@ disk.img:
 
 disk: disk.img
 
+cloud-push:
+> sh scripts/cloud-push.sh
+
 cloud-pull:
 > sh scripts/cloud-sync.sh
 
@@ -72,4 +75,4 @@ debug: all disk.img
 clean:
 > rm -rf $(BUILD)
 
-.PHONY: all disk disk.img cloud-pull run restart debug clean
+.PHONY: all disk disk.img cloud-push cloud-pull run restart debug clean

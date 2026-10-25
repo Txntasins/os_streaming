@@ -5,9 +5,24 @@
   "hls_720p": "/media/hls_720p/index.m3u8",
   "mp4_files": [
     {
+      "filename": "JUSTWANNALISTENSONG.mp4",
+      "url": "/media/JUSTWANNALISTENSONG.mp4",
+      "size": 44673964
+    },
+    {
       "filename": "TEST.mp4",
       "url": "/media/TEST.mp4",
       "size": 84426644
+    },
+    {
+      "filename": "TEST1HR.mp4",
+      "url": "/media/TEST1HR.mp4",
+      "size": 360286715
+    },
+    {
+      "filename": "WANNALISTEN2.mp4",
+      "url": "/media/WANNALISTEN2.mp4",
+      "size": 120054539
     },
     {
       "filename": "sample.mp4",

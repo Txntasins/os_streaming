@@ -1,14 +1,42 @@
 {
-  "platform": "OS StreamFlix (AArch64 Kernel + MLFQ + Cloud DB)",
-  "version": "3.0",
+  "platform": "OS StreamFlix (AArch64 Kernel + Pi 5)",
+  "version": "2.2",
   "collections": [
-    { "id": "all", "name": "All Videos", "icon": "🎬" },
-    { "id": "featured", "name": "Featured", "icon": "🔥" },
-    { "id": "Video", "name": "Long Videos", "icon": "🎞️" },
-    { "id": "cloud", "name": "Cloud Videos (>100MB)", "icon": "☁️" },
-    { "id": "music", "name": "Music & Rickroll", "icon": "🎵" },
-    { "id": "demo", "name": "Kernel Demos", "icon": "⚡" },
-    { "id": "watchlist", "name": "My Watchlist", "icon": "⭐" }
+    {
+      "id": "all",
+      "name": "All Videos",
+      "icon": "🎬"
+    },
+    {
+      "id": "featured",
+      "name": "Featured",
+      "icon": "🔥"
+    },
+    {
+      "id": "Video",
+      "name": "Long Videos",
+      "icon": "🎞️"
+    },
+    {
+      "id": "cloud",
+      "name": "Cloud Videos (>100MB)",
+      "icon": "☁️"
+    },
+    {
+      "id": "music",
+      "name": "Music & Rickroll",
+      "icon": "🎵"
+    },
+    {
+      "id": "demo",
+      "name": "Kernel Demos",
+      "icon": "⚡"
+    },
+    {
+      "id": "watchlist",
+      "name": "My Watchlist",
+      "icon": "⭐"
+    }
   ],
   "catalog": {
     "TEST.mp4": {
@@ -20,7 +48,7 @@
       "year": 1987,
       "badge": "FEATURED STREAM",
       "accent": "#e50914",
-      "cloud_url": "",
+      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/TEST.mp4",
       "description": "Full-length 84 MB MP4 video streamed directly from custom AArch64 kernel tarfs via lwIP TCP + HTTP 206 Range requests."
     },
     "sample.mp4": {
@@ -35,17 +63,41 @@
       "cloud_url": "",
       "description": "Lightweight test clip verifying zero-Linux bare-metal HTTP streaming, instant byte-range seeking, and keep-alive reuse."
     },
+    "JUSTWANNALISTENSONG.mp4": {
+      "title": "JUSTWANNALISTENSONG",
+      "collection": "Video",
+      "featured": true,
+      "resolution": "1080p H.264/AAC",
+      "duration": "4:57",
+      "year": 2026,
+      "badge": "AUTO-INDEXED",
+      "accent": "#e50914",
+      "description": "Auto-indexed from www/JUSTWANNALISTENSONG.mp4 (42.60 MB) via tarfs + HTTP 206 chunked streaming.",
+      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/JUSTWANNALISTENSONG.mp4"
+    },
     "TEST1HR.mp4": {
-      "title": "Conclusion of FOR HONOR by WARCRY FROM Youtube",
+      "title": "TEST1HR",
       "collection": "Video",
       "featured": true,
       "resolution": "360p H.264/AAC",
-      "duration": "01:16:58",
+      "duration": "01:17:01",
       "year": 2026,
-      "badge": "CLOUD / LOCAL 1HR",
+      "badge": "AUTO-INDEXED",
       "accent": "#8B5E3C",
-      "cloud_url": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      "description": "1-hour+ large video: streams from local tarfs if present, or falls back to cloud_url when cloned without >100MB local file (run 'make cloud-pull' to download into tarfs)."
+      "description": "Auto-indexed from www/TEST1HR.mp4 (343.60 MB) via tarfs + HTTP 206 chunked streaming.",
+      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/TEST1HR.mp4"
+    },
+    "WANNALISTEN2.mp4": {
+      "title": "WANNALISTEN2",
+      "collection": "Video",
+      "featured": true,
+      "resolution": "1080p H.264/AAC",
+      "duration": "4:20",
+      "year": 2026,
+      "badge": "AUTO-INDEXED",
+      "accent": "#7c3aed",
+      "description": "Auto-indexed from www/WANNALISTEN2.mp4 (114.49 MB) via tarfs + HTTP 206 chunked streaming.",
+      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/WANNALISTEN2.mp4"
     }
   }
 }
