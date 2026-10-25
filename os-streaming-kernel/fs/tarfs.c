@@ -24,7 +24,7 @@ int tarfs_rescan_quiet(void) {
     static u8 hdr[512] __attribute__((aligned(16)));
     while (sector < total && nfiles < MAX_FILES) {
         if (blk_read(sector, 1, hdr) < 0) break;
-        if (hdr[0] == 0) break;                                   /* Zero block = end of archive */
+        if (hdr[0] == 0) break;                                /* Zero block = end of archive */
         /* Verify ustar magic or valid filename */
         u64 size = parse_octal((char *)hdr + 124, 12);
         char type = hdr[156];

@@ -589,6 +589,7 @@ async function initDatabase() {
   }
 
   const palette = ['#e50914', '#0284c7', '#8B5E3C', '#7c3aed', '#059669'];
+  const diskNames = new Set(diskVideos.map(v => v.filename));
   allVideos = diskVideos.map((v, idx) => {
     const meta = (dbMeta.catalog && dbMeta.catalog[v.filename]) || {};
     return {
@@ -607,6 +608,28 @@ async function initDatabase() {
       description: meta.description || `Streamed in ${currentChunkKB} KB HTTP 206 buffer chunks from tarfs disk image (${v.filename}).`
     };
   });
+  // Also include Cloud Database videos (cloud_url) when local >100MB file is not on disk yet!
+  if (dbMeta.catalog) {
+    Object.entries(dbMeta.catalog).forEach(([fname, meta], i) => {
+      if (!diskNames.has(fname) && meta.cloud_url) {
+        allVideos.push({
+          id: 100 + i,
+          filename: fname,
+          url: meta.cloud_url,
+          size: meta.size || 0,
+          mime: 'video/mp4',
+          title: meta.title || fname,
+          collection: 'cloud',
+          featured: true,
+          resolution: meta.resolution || 'Cloud H.264',
+          duration: meta.duration || 'Cloud',
+          badge: '☁️ CLOUD STREAM',
+          accent: meta.accent || '#0284c7',
+          description: meta.description || 'Streamed from Cloud URL (or run make cloud-pull to cache into tarfs).'
+        });
+      }
+    });
+  }
 
   document.getElementById('dbInspector').textContent = JSON.stringify(
     { total_videos: allVideos.length, chunk_kb: currentChunkKB, videos: allVideos },

@@ -202,11 +202,11 @@ static void make_status(struct hs *hs) {
         "active conns : %d / %d\n"
         "video chunk  : %lu KB per HTTP 206 buffer\n"
         "files on disk: %d\n"
-        "scheduler    : preemptive round-robin, 10 ms slice (%lu ticks)\n"
+        "scheduler    : %s (%lu ticks)\n"
         "disk sectors : %lu\n",
         (unsigned long)uptime_ms(), ip, (unsigned long)pmm_free_pages(), (unsigned long)pmm_total_pages(),
         (unsigned long)kheap_used(), nconn, MAX_CONN, (unsigned long)(video_chunk_bytes >> 10),
-        tarfs_count(), (unsigned long)timer_ticks(), (unsigned long)blk_sectors());
+        tarfs_count(), sched_mode_name(), (unsigned long)timer_ticks(), (unsigned long)blk_sectors());
     hs->remaining = (u64)n;
 }
 

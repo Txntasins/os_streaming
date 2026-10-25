@@ -51,6 +51,9 @@ disk.img:
 
 disk: disk.img
 
+cloud-pull:
+> sh scripts/cloud-sync.sh
+
 run: all
 > sh scripts/run-all.sh "$(QEMU)" "$(BUILD)/kernel.elf"
 
@@ -69,4 +72,4 @@ debug: all disk.img
 clean:
 > rm -rf $(BUILD)
 
-.PHONY: all disk disk.img run restart debug clean
+.PHONY: all disk disk.img cloud-pull run restart debug clean

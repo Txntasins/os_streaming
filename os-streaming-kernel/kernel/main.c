@@ -2,7 +2,6 @@
 
 extern char vectors[];
 extern char __kernel_end[];
-void thread_init(void);
 
 void kmain(void) {
     mmu_init();                                     /* Enable MMU + cache (identity map) */
@@ -14,7 +13,9 @@ void kmain(void) {
     kprintf("[mm]   %lu MB free for pages, kernel heap %lu KB\n",
             (unsigned long)(pmm_free_pages() * PAGE_SIZE >> 20), 4096UL);
 
+#ifdef __aarch64__
     __asm__ volatile("msr vbar_el1, %0\n isb" :: "r"(vectors));
+#endif
     gic_init();
     thread_init();
     timer_init(100);                                /* 100 Hz = time slice 10 ms */
@@ -27,6 +28,8 @@ void kmain(void) {
     thread_create(net_thread, 0, "net");
     thread_create(shell_thread, 0, "shell");
 
+#ifdef __aarch64__
     __asm__ volatile("msr daifclr, #2");            /* Enable IRQs */
     for (;;) __asm__ volatile("wfi");               /* thread 0 = idle */
+#endif
 }

@@ -20,20 +20,36 @@ typedef uint64_t u64;
 
 #define PAGE_SIZE       4096UL
 
+/* ---------- Scheduler Modes & MLFQ Constants ---------- */
+#define SCHED_RR        0
+#define SCHED_MLFQ      1
+#define MLFQ_LEVELS     4                       /* Q0 (highest, 10ms) .. Q3 (lowest, 80ms) */
+#define MLFQ_BOOST_TICKS 200                    /* Priority boost every 200 ticks (2.0 s) */
+
 /* ---------- MMIO / IRQ ---------- */
 static inline u32  rd32(u64 a)         { return *(volatile u32 *)a; }
 static inline void wr32(u64 a, u32 v)  { *(volatile u32 *)a = v; }
 static inline u8   rd8(u64 a)          { return *(volatile u8 *)a; }
 
 static inline unsigned long irq_save(void) {
-    unsigned long f;
+    unsigned long f = 0;
+#ifdef __aarch64__
     __asm__ volatile("mrs %0, daif\n msr daifset, #2" : "=r"(f) :: "memory");
+#endif
     return f;
 }
 static inline void irq_restore(unsigned long f) {
+#ifdef __aarch64__
     __asm__ volatile("msr daif, %0" :: "r"(f) : "memory");
+#else
+    (void)f;
+#endif
 }
-static inline void dmb(void) { __asm__ volatile("dmb sy" ::: "memory"); }
+static inline void dmb(void) {
+#ifdef __aarch64__
+    __asm__ volatile("dmb sy" ::: "memory");
+#endif
+}
 
 /* ---------- trap frame (saved by vectors.S) ---------- */
 struct trapframe {
@@ -88,8 +104,10 @@ void *kmalloc(size_t n);
 void  kfree(void *p);
 size_t kheap_used(void);
 
-/* ---------- threads / process ---------- */
+/* ---------- threads / process / scheduler ---------- */
+void thread_init(void);
 int  thread_create(void (*fn)(void *), void *arg, const char *name);
+int  thread_create_prio(void (*fn)(void *), void *arg, const char *name, int prio);
 void yield(void);
 void thread_exit(void) __attribute__((noreturn));
 int  thread_self(void);
@@ -97,6 +115,10 @@ void thread_sleep_ms(unsigned ms);
 void thread_tick(void);
 void thread_dump(void);
 int  threads_running(void);
+void sched_set_mode(int mode);
+int  sched_get_mode(void);
+const char *sched_mode_name(void);
+void sched_run_benchmark(void);
 int  proc_exec(const void *img, size_t len, const char *name);
 void user_syscall(struct trapframe *tf);
 void user_fault(struct trapframe *tf, u64 esr);

@@ -8,7 +8,9 @@ static void cmd_help(void) {
     kprintf("  help            show all commands\n");
     kprintf("  uptime          system uptime\n");
     kprintf("  mem             memory status (page allocator + heap)\n");
-    kprintf("  ps              list of threads / processes\n");
+    kprintf("  ps              list of threads / processes (shows MLFQ priority queue Q0..Q3)\n");
+    kprintf("  sched [rr|mlfq] switch scheduler between Round-Robin and MLFQ at runtime\n");
+    kprintf("  bench           run in-kernel scheduler benchmark (context-switch ns + RR vs MLFQ)\n");
     kprintf("  ls              files on disk (auto-syncs with disk.img)\n");
     kprintf("  rescan          reload the file list after adding/deleting a video (no reboot needed)\n");
     kprintf("  restart         restart kernel server & Cloudflare Tunnel (rebuilds disk.img + db.json)\n");
@@ -84,6 +86,48 @@ static void run_line(char *line) {
     else if (!strcmp(line, "ifconfig")) { char ip[32]; net_get_ip(ip, sizeof(ip)); kprintf("  ip %s\n", ip); }
     else if (!strcmp(line, "run"))      cmd_run(*arg >= '1' && *arg <= '8' ? *arg - '0' : 1);
     else if (!strcmp(line, "crash"))    cmd_crash();
+    else if (!strcmp(line, "sched")) {
+        if (!strcmp(arg, "rr")) {
+            sched_set_mode(SCHED_RR);
+            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
+        } else if (!strcmp(arg, "mlfq")) {
+            sched_set_mode(SCHED_MLFQ);
+            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
+        } else {
+            kprintf("  Current scheduler: %s\n  Usage: sched rr | sched mlfq\n", sched_mode_name());
+        }
+    }
+    else if (!strcmp(line, "bench")) {
+        sched_run_benchmark();
+    }
+    else if (!strcmp(line, "sched")) {
+        if (!strcmp(arg, "rr")) {
+            sched_set_mode(SCHED_RR);
+            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
+        } else if (!strcmp(arg, "mlfq")) {
+            sched_set_mode(SCHED_MLFQ);
+            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
+        } else {
+            kprintf("  Current scheduler: %s\n  Usage: sched rr | sched mlfq\n", sched_mode_name());
+        }
+    }
+    else if (!strcmp(line, "bench")) {
+        sched_run_benchmark();
+    }
+    else if (!strcmp(line, "sched")) {
+        if (!strcmp(arg, "rr")) {
+            sched_set_mode(SCHED_RR);
+            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
+        } else if (!strcmp(arg, "mlfq")) {
+            sched_set_mode(SCHED_MLFQ);
+            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
+        } else {
+            kprintf("  Current scheduler: %s\n  Usage: sched rr | sched mlfq\n", sched_mode_name());
+        }
+    }
+    else if (!strcmp(line, "bench")) {
+        sched_run_benchmark();
+    }
     else if (!strcmp(line, "rescan"))   { int n = tarfs_rescan(); kprintf("  %d file(s) now visible\n", n < 0 ? 0 : n); }
     else if (!strcmp(line, "restart") || !strcmp(line, "reboot")) {
         kprintf("  [restart] Syncing disk.img + db.json and restarting server & Cloudflare tunnel...\n");

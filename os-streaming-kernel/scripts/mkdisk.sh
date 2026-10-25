@@ -49,10 +49,11 @@ actual_files = sorted([
     if os.path.isfile(os.path.join(www_dir, f)) and f.lower().endswith(media_exts) and not f.endswith(".tmp")
 ])
 
-# Remove deleted files from catalog
+# Remove deleted local files from catalog UNLESS they have a "cloud_url" (Cloud Video DB entry!)
 old_keys = list(db["catalog"].keys())
 for k in old_keys:
-    if k not in actual_files:
+    has_cloud = bool(db["catalog"][k].get("cloud_url", "").strip())
+    if k not in actual_files and not has_cloud:
         del db["catalog"][k]
 
 palette = ["#e50914", "#0284c7", "#8B5E3C", "#7c3aed", "#059669", "#d97706"]

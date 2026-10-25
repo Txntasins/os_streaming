@@ -1,0 +1,13 @@
+# Raspberry Pi 5 Bare-Metal HDMI Framebuffer + RP1 UART0 Config
+arm_64bit=1
+kernel=kernel8.img
+kernel_address=0x40080000
+
+# Keep RP1 PCIe link alive & enable RP1 UART0 (115200 8N1)
+enable_rp1_uart=1
+pciex4_reset=0
+
+# Force HDMI output 1280x720 so VideoCore VII initializes framebuffer even if monitor wakes late
+hdmi_force_hotplug=1
+hdmi_group=1
+hdmi_mode=4

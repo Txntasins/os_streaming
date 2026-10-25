@@ -1,0 +1,16 @@
+# Raspberry Pi 5 bare-metal bring-up config.
+# Put this file, plus kernel8.img, directly on the boot partition of the SD card
+# (the same partition that already has bootcode files from Raspberry Pi OS / Imager).
+
+arm_64bit=1
+kernel=kernel8.img
+kernel_address=0x40080000      # must match linker_pi5.ld's load address
+
+# --- the two lines that matter most ---
+# RP1 (the chip that has the UART, GPIO, SD controller, Ethernet, USB — almost
+# everything on a Pi 5) sits behind a PCIe link. By default the firmware resets
+# that link before starting your kernel, which makes RP1 totally unreachable.
+# Without these two lines, the very first UART register access in
+# boot_uart_hello.S hangs forever with ZERO output on screen or serial.
+enable_rp1_uart=1
+pciex4_reset=0
