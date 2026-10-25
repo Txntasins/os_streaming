@@ -1,13 +1,13 @@
-/* Kernel threads + round-robin scheduler (preemptive via timer interrupt) */
+/* Kernel threads + Preemptive Priority / MLFQ & Round-Robin Scheduler */
 #include "kernel.h"
 #include <string.h>
 
 #define MAX_THREADS  16
-#define KSTACK_PAGES 4                     /* 16 KB per thread */
+#define KSTACK_PAGES 4                    /* 16 KB per thread */
 
 enum { T_FREE, T_READY, T_SLEEP, T_DEAD };
 
-struct context {                           /* The order must match arch/switch.S */
+struct context {                          /* The order must match arch/switch.S */
     u64 x19, x20, x21, x22, x23, x24, x25, x26, x27, x28;
     u64 fp, lr, sp;
 };
@@ -15,14 +15,14 @@ struct context {                           /* The order must match arch/switch.S
 struct thread {
     struct context ctx;
     int   state;
-    int   prio;                            /* MLFQ queue level: 0 = highest .. 3 = lowest */
-    int   base_prio;                       /* Initial priority when created */
-    u32   slice_ticks;                     /* Ticks used in current time quantum */
-    u32   demotions;                       /* Number of times demoted for exhausting quantum */
+    int   prio;                           /* MLFQ queue level: 0 (highest) .. 3 (lowest) */
+    int   base_prio;                      /* Initial priority when created */
+    u32   slice_ticks;                    /* Ticks used in current time quantum */
+    u32   demotions;                      /* Number of times demoted for exhausting quantum */
     u64   wake_ms;
-    u64  *ttbr0;                           /* 0 = use kernel page table */
+    u64  *ttbr0;                          /* 0 = use kernel page table */
     void *kstack;
-    int   user_slot;                       /* -1 = not a user process */
+    int   user_slot;                      /* -1 = not a user process */
     u64   run_ticks;
     char  name[16];
 };
@@ -35,7 +35,7 @@ static int current;
 static u64 *cur_table;
 static u8 slot_used[USER_SLOTS];
 
-static int sched_mode = SCHED_MLFQ;         /* Default to upgraded MLFQ scheduler */
+static int sched_mode = SCHED_MLFQ;       /* Default to upgraded MLFQ scheduler */
 static u64 total_ticks;
 static u64 boost_count;
 static u64 ctx_switches;
@@ -58,17 +58,17 @@ void sched_set_mode(int mode) {
     irq_restore(f);
 }
 
-int sched_get_mode(void) {return sched_mode;}
+int sched_get_mode(void) { return sched_mode; }
 
 const char *sched_mode_name(void) {
     return (sched_mode == SCHED_MLFQ)
-        ? "preemtive MLFQ (4 queues: Q0=10ms..Q3=80ms, boost 2s)"
-        : "preemtive round-robin (10ms)";
+        ? "preemptive MLFQ (4 queues: Q0=10ms..Q3=80ms, boost 2s)"
+        : "preemptive round-robin, 10 ms slice";
 }
 
 void thread_init(void) {
     memset(threads, 0, sizeof(threads));
-    threads[0].state = T_READY;            /* thread 0 = kmain, acts as idle */
+    threads[0].state = T_READY;           /* thread 0 = kmain, acts as idle */
     threads[0].user_slot = -1;
     threads[0].prio = MLFQ_LEVELS - 1;
     threads[0].base_prio = MLFQ_LEVELS - 1;
@@ -76,7 +76,7 @@ void thread_init(void) {
     cur_table = mmu_kernel_table();
 }
 
-static void reap(struct thread *t) {       /* Reclaim resources of an exited thread */
+static void reap(struct thread *t) {      /* Reclaim resources of an exited thread */
     if (t->ttbr0) {
         u64 l2 = t->ttbr0[(USER_VBASE >> 30) & 511] & ~0xfffUL;
         pmm_free((void *)l2, 1);
@@ -119,7 +119,7 @@ int thread_create(void (*fn)(void *), void *arg, const char *name) {
 }
 
 int thread_create_prio(void (*fn)(void *), void *arg, const char *name, int prio) {
-    return create(fn, arg, name, 0, -1,prio);
+    return create(fn, arg, name, 0, -1, prio);
 }
 
 int thread_self(void) { return current; }
@@ -149,8 +149,8 @@ void yield(void) {
         if (next == 0 && prev != 0 && threads[prev].state == T_READY) next = prev;
     } else {
         /* MLFQ Priority Scheduler:
-        Find the highest priority level (0 = highest .. 3 = lowest) that has a T_READY thread,
-        and round-robin among threads within that priority level */
+           Find the highest priority level (0 = highest .. 3 = lowest) that has a T_READY thread,
+           and round-robin among threads within that priority level. */
         int best_prio = MLFQ_LEVELS;
         for (int i = 1; i < MAX_THREADS; i++) {
             if (threads[i].state == T_READY && threads[i].prio < best_prio)
@@ -158,19 +158,19 @@ void yield(void) {
         }
         if (best_prio < MLFQ_LEVELS) {
             /* If current thread is still T_READY at best_prio and hasn't finished its quantum,
-            let it continue its multi-tick quantum unless it yielded voluntarily */
+               let it continue its multi-tick quantum unless it yielded voluntarily */
             if (prev != 0 && threads[prev].state == T_READY &&
                 threads[prev].prio == best_prio &&
                 threads[prev].slice_ticks > 0 &&
                 threads[prev].slice_ticks < quantum_for_prio(best_prio)) {
                 next = prev;
-                } else {
-                    for (int k = 1; k <= MAX_THREADS; k++) {
-                        int i = (prev + k) % MAX_THREADS;
-                        if (i == 0) continue;
-                        if (threads[i].state == T_READY && threads[i].prio == best_prio) {
-                            next = i;
-                            break;
+            } else {
+                for (int k = 1; k <= MAX_THREADS; k++) {
+                    int i = (prev + k) % MAX_THREADS;
+                    if (i == 0) continue;
+                    if (threads[i].state == T_READY && threads[i].prio == best_prio) {
+                        next = i;
+                        break;
                     }
                 }
             }
@@ -192,7 +192,7 @@ void thread_sleep_ms(unsigned ms) {
     unsigned long f = irq_save();
     threads[current].wake_ms = uptime_ms() + ms;
     threads[current].state = T_SLEEP;
-    threads[current].slice_ticks = 0; /* Voluntary I/O sleep resets slice so interactive threads stay high prio */
+    threads[current].slice_ticks = 0;     /* Voluntary I/O sleep resets slice so interactive threads stay high prio */
     irq_restore(f);
     yield();
 }
@@ -204,19 +204,19 @@ void thread_exit(void) {
     yield();
     for (;;) {
 #ifdef __aarch64__
-    __asm__ volatile("wfe");
+        __asm__ volatile("wfe");
 #endif
     }
 }
 
 void thread_tick(void) {
-    struct thread *t  = &threads[current];
+    struct thread *t = &threads[current];
     t->run_ticks++;
     t->slice_ticks++;
     total_ticks++;
 
     if (sched_mode == SCHED_MLFQ) {
-        /* Rule 4: If a thread used its entire time quantum at this level, demote it */
+        /* Rule 4: If thread used its entire time quantum at this level, demote it */
         if (current != 0 && t->state == T_READY) {
             u32 q = quantum_for_prio(t->prio);
             if (t->slice_ticks >= q) {
@@ -252,17 +252,17 @@ void thread_dump(void) {
     static const char *st[] = { "free", "ready", "sleep", "dead" };
     kprintf("  Scheduler: %s (switches=%lu, boosts=%lu)\n",
             sched_mode_name(), (unsigned long)ctx_switches, (unsigned long)boost_count);
-    kprintf("  ID  NAME             STATE  CPU(ticks)  KIND\n");
+    kprintf("  ID  NAME             STATE   PRIO  DEMOTE  CPU(ticks)  KIND\n");
     for (int i = 0; i < MAX_THREADS; i++) {
         struct thread *t = &threads[i];
         if (t->state == T_FREE) continue;
-        kprintf("  %2d  %-16s %-6s %10lu  %s%s\n",
-            i, t->name, st[t->state], t->prio, t->demotions, (unsigned long)t->run_ticks,
-                t->ttbr0 ? "user process" : "kernel thread", i == current ? "  <- running" : "");
+        kprintf("  %2d  %-16s %-6s  Q%-3d  %6u  %10lu  %s%s\n",
+                i, t->name, st[t->state], t->prio, t->demotions, (unsigned long)t->run_ticks,
+                t->ttbr0 ? "user process" : "kernel thread", i == current ? " <- running" : "");
     }
 }
 
-/* ---------- In-Kernel Scheduler Benchmark (RR vs MLFQ for OS Report) ------------ */
+/* --------- In-Kernel Scheduler Benchmark (RR vs MLFQ for OS Report) --------- */
 static volatile int bench_stop;
 static volatile u64 bench_work_iters[4];
 static volatile u64 bench_io_wakeups;
@@ -296,20 +296,20 @@ static void bench_yield_peer(void *arg) {
     thread_exit();
 }
 
-static inline u64 read_cnvct(void) {
+static inline u64 read_cntvct(void) {
     u64 v = 0;
 #ifdef __aarch64__
-    __asm__ volatile("mrs %0, cnvct_el0" : "=r"(v));
+    __asm__ volatile("mrs %0, cntvct_el0" : "=r"(v));
 #endif
     return v;
 }
 
 static inline u64 read_cntfrq(void) {
-    u64 f = 10000000000ULL;
+    u64 f = 1000000000ULL;
 #ifdef __aarch64__
     __asm__ volatile("mrs %0, cntfrq_el0" : "=r"(f));
 #endif
-    return f ? f : 10000000000ULL;
+    return f ? f : 1000000000ULL;
 }
 
 static void run_mode_test(int mode, u64 *out_ticks_sum, u64 *out_fairness_pct, u64 *out_io_wakes, u32 *out_demotes) {
@@ -317,14 +317,14 @@ static void run_mode_test(int mode, u64 *out_ticks_sum, u64 *out_fairness_pct, u
     bench_stop = 0;
     bench_io_wakeups = 0;
     for (int i = 0; i < 4; i++) bench_work_iters[i] = 0;
-    
+
     int pids[4];
     for (int i = 0; i < 4; i++) {
-        pids[i] = thread_create(bench_cpu_worker, (void *)(u64)i, "cpu_woerk");
+        pids[i] = thread_create(bench_cpu_worker, (void *)(u64)i, "cpu_work");
     }
     int io_pid = thread_create(bench_io_worker, 0, "io_interactive");
 
-    /* Let the 4 CPU-bound threads + 1 I/O interactive thread complete for 500 ms (50 ticks) */
+    /* Let the 4 CPU-bound threads + 1 I/O interactive thread compete for 500 ms (50 ticks) */
     thread_sleep_ms(500);
     bench_stop = 1;
     thread_sleep_ms(40);
@@ -351,7 +351,7 @@ void sched_run_benchmark(void) {
     kprintf(" In-Kernel Scheduler Benchmark: Round-Robin vs MLFQ (AArch64)\n");
     kprintf("====================================================================\n");
 
-    /* 1. Measure raw context-switch time using ARM Generic Timer counter (cntvt_el0) */
+    /* 1. Measure raw context-switch time using ARM Generic Timer counter (cntvct_el0) */
     sched_set_mode(SCHED_RR);
     int peer_loops = 500;
     thread_create(bench_yield_peer, &peer_loops, "ctx_peer");
@@ -364,7 +364,7 @@ void sched_run_benchmark(void) {
     u64 total_switches = 1000;
     u64 delta_cycles = (t1 > t0) ? (t1 - t0) : 1000;
     u64 ns_per_switch = (delta_cycles * 1000000000ULL) / (frq * total_switches);
-    kprintf(" [1] Context-Switch Overhead (1,000 Switches via cpu_switch):\n");
+    kprintf(" [1] Context-Switch Overhead (1,000 switches via cpu_switch):\n");
     kprintf("     Timer frequency      : %lu Hz\n", (unsigned long)frq);
     kprintf("     Avg context switch   : %lu ns (%lu timer cycles)\n\n",
             (unsigned long)ns_per_switch, (unsigned long)(delta_cycles / total_switches));
@@ -373,8 +373,8 @@ void sched_run_benchmark(void) {
     u64 rr_work = 0, rr_fair = 0, rr_io = 0; u32 rr_dem = 0;
     u64 mlfq_work = 0, mlfq_fair = 0, mlfq_io = 0; u32 mlfq_dem = 0;
 
-    kprintf(" [2] Running 500 ms Mixed worklaod (4 CPU-bound + 1 I/O thread)...\n");
-    run_mode_test(SCHED_RR, &rr_work, &rr_fair, &rr_io, &rr_dem);
+    kprintf(" [2] Running 500 ms Mixed Workload (4 CPU-bound + 1 I/O thread)...\n");
+    run_mode_test(SCHED_RR,   &rr_work,   &rr_fair,   &rr_io,   &rr_dem);
     run_mode_test(SCHED_MLFQ, &mlfq_work, &mlfq_fair, &mlfq_io, &mlfq_dem);
 
     kprintf("     ---------------------------------------------------------------\n");
@@ -390,7 +390,7 @@ void sched_run_benchmark(void) {
     sched_set_mode(saved_mode);
 }
 
-/* ---------- user process ---------- */
+/* --------- user process --------- */
 extern void enter_user(u64 entry, u64 sp);
 static void user_entry(void *arg) {
     (void)arg;
@@ -410,7 +410,7 @@ int proc_exec(const void *img, size_t len, const char *name) {
     memset((void *)phys, 0, USER_SLOT_SIZE);
     memcpy((void *)phys, img, len);
 #ifdef __aarch64__
-    __asm__ volatile("dsb ish\n ic iallu\n dsb ish\n isb" ::: "memory");   /* Make the instruction cache see the new code */
+    __asm__ volatile("dsb ish\nic iallu\ndsb ish\nisb" ::: "memory");   /* Make the instruction cache see the new code */
 #endif
     u64 *table = mmu_new_user_table(phys);
     if (!table) { slot_used[slot] = 0; return -3; }
