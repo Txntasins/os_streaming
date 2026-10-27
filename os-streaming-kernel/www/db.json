@@ -18,11 +18,6 @@
       "icon": "🎞️"
     },
     {
-      "id": "cloud",
-      "name": "Cloud Videos (>100MB)",
-      "icon": "☁️"
-    },
-    {
       "id": "music",
       "name": "Music & Rickroll",
       "icon": "🎵"
@@ -39,30 +34,6 @@
     }
   ],
   "catalog": {
-    "TEST.mp4": {
-      "title": "Rick Astley - Never Gonna Give You Up (HD Stream)",
-      "collection": "music",
-      "featured": true,
-      "resolution": "720p H.264/AAC",
-      "duration": "3:33",
-      "year": 1987,
-      "badge": "FEATURED STREAM",
-      "accent": "#e50914",
-      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/TEST.mp4",
-      "description": "Full-length 84 MB MP4 video streamed directly from custom AArch64 kernel tarfs via lwIP TCP + HTTP 206 Range requests."
-    },
-    "sample.mp4": {
-      "title": "Kernel Boot & Virtio-Net Streaming Sample",
-      "collection": "demo",
-      "featured": true,
-      "resolution": "480p H.264",
-      "duration": "0:15",
-      "year": 2026,
-      "badge": "KERNEL TEST",
-      "accent": "#00b4d8",
-      "cloud_url": "",
-      "description": "Lightweight test clip verifying zero-Linux bare-metal HTTP streaming, instant byte-range seeking, and keep-alive reuse."
-    },
     "JUSTWANNALISTENSONG.mp4": {
       "title": "JUSTWANNALISTENSONG",
       "collection": "Video",
@@ -72,8 +43,29 @@
       "year": 2026,
       "badge": "AUTO-INDEXED",
       "accent": "#e50914",
-      "description": "Auto-indexed from www/JUSTWANNALISTENSONG.mp4 (42.60 MB) via tarfs + HTTP 206 chunked streaming.",
-      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/JUSTWANNALISTENSONG.mp4"
+      "description": "Auto-indexed from www/JUSTWANNALISTENSONG.mp4 (42.60 MB) via tarfs + HTTP 206 chunked streaming."
+    },
+    "TEST.mp4": {
+      "title": "TEST",
+      "collection": "Video",
+      "featured": true,
+      "resolution": "1080p H.264/AAC",
+      "duration": "3:33",
+      "year": 2026,
+      "badge": "AUTO-INDEXED",
+      "accent": "#0284c7",
+      "description": "Auto-indexed from www/TEST.mp4 (80.52 MB) via tarfs + HTTP 206 chunked streaming."
+    },
+    "sample.mp4": {
+      "title": "sample",
+      "collection": "demo",
+      "featured": true,
+      "resolution": "360p H.264/AAC",
+      "duration": "0:10",
+      "year": 2026,
+      "badge": "AUTO-INDEXED",
+      "accent": "#8B5E3C",
+      "description": "Auto-indexed from www/sample.mp4 (0.15 MB) via tarfs + HTTP 206 chunked streaming."
     },
     "TEST1HR.mp4": {
       "title": "TEST1HR",
@@ -84,8 +76,7 @@
       "year": 2026,
       "badge": "AUTO-INDEXED",
       "accent": "#8B5E3C",
-      "description": "Auto-indexed from www/TEST1HR.mp4 (343.60 MB) via tarfs + HTTP 206 chunked streaming.",
-      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/TEST1HR.mp4"
+      "description": "Auto-indexed from www/TEST1HR.mp4 (343.60 MB) via tarfs + HTTP 206 chunked streaming."
     },
     "WANNALISTEN2.mp4": {
       "title": "WANNALISTEN2",
@@ -95,9 +86,8 @@
       "duration": "4:20",
       "year": 2026,
       "badge": "AUTO-INDEXED",
-      "accent": "#7c3aed",
-      "description": "Auto-indexed from www/WANNALISTEN2.mp4 (114.49 MB) via tarfs + HTTP 206 chunked streaming.",
-      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/WANNALISTEN2.mp4"
+      "accent": "#059669",
+      "description": "Auto-indexed from www/WANNALISTEN2.mp4 (114.49 MB) via tarfs + HTTP 206 chunked streaming."
     }
   }
 }

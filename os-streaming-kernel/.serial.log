@@ -1,0 +1,29 @@
+
+=== OS Streaming Kernel (AArch64) ===
+[boot] MMU on, kernel image ends at 0x4031b000
+[mm]   232 MB free for pages, kernel heap 4096 KB
+[sched] preemptive MLFQ (4 queues: Q0=10ms..Q3=80ms, boost 2s)
+[audio] RP1 PWM0 + I2S0/DMA + BCM2712 vc4-hdmi (N=6144, CTS=74250, 48kHz) ready
+[blk]  virtio-blk slot 31 (v1): 8388608 sectors (4096 MB)
+[fs]   tarfs: found 7 files
+           84426644  TEST.mp4
+           44774978  JUSTWANNALISTENSONG.mp4
+               2463  db.json
+             157639  sample.mp4
+          360286715  TEST1HR.mp4
+          120188807  WANNALISTEN2.mp4
+              24769  index.html
+[net]  virtio-net slot 30 (v1) MAC 52:54:00:12:34:56
+[net]  lwIP is ready IP 10.0.2.15, HTTP server at port 80
+
+Type help to see commands
+os> ls
+    84426644  TEST.mp4
+    44774978  JUSTWANNALISTENSONG.mp4
+        2463  db.json
+      157639  sample.mp4
+   360286715  TEST1HR.mp4
+   120188807  WANNALISTEN2.mp4
+       24769  index.html
+os> QEMU: Terminated
+
