@@ -1,0 +1,60 @@
+{
+  "platform": "OS StreamFlix (AArch64 Kernel + Pi 5)",
+  "version": "2.2",
+  "collections": [
+    {
+      "id": "all",
+      "name": "All Videos",
+      "icon": "🎬"
+    },
+    {
+      "id": "featured",
+      "name": "Featured",
+      "icon": "🔥"
+    },
+    {
+      "id": "Video",
+      "name": "Long Videos",
+      "icon": "🎞️"
+    },
+    {
+      "id": "music",
+      "name": "Music & Rickroll",
+      "icon": "🎵"
+    },
+    {
+      "id": "demo",
+      "name": "Kernel Demos",
+      "icon": "⚡"
+    },
+    {
+      "id": "watchlist",
+      "name": "My Watchlist",
+      "icon": "⭐"
+    }
+  ],
+  "catalog": {
+    "TEST.mp4": {
+      "title": "TEST",
+      "collection": "Video",
+      "featured": true,
+      "resolution": "1080p H.264/AAC",
+      "duration": "3:33",
+      "year": 2026,
+      "badge": "AUTO-INDEXED",
+      "accent": "#0284c7",
+      "description": "Auto-indexed from www/TEST.mp4 (80.52 MB) via tarfs + HTTP 206 chunked streaming."
+    },
+    "sample.mp4": {
+      "title": "sample",
+      "collection": "demo",
+      "featured": true,
+      "resolution": "360p H.264/AAC",
+      "duration": "0:10",
+      "year": 2026,
+      "badge": "AUTO-INDEXED",
+      "accent": "#8B5E3C",
+      "description": "Auto-indexed from www/sample.mp4 (0.15 MB) via tarfs + HTTP 206 chunked streaming."
+    }
+  }
+}

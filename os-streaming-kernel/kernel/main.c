@@ -2,10 +2,9 @@
 
 extern char vectors[];
 extern char __kernel_end[];
-void thread_init(void);
 
 void kmain(void) {
-    mmu_init();                                     /* Enable MMU + cache (identity map) */
+    mmu_init();                      /* Enable MMU + cache (identity map) */
     kprintf("\n=== OS Streaming Kernel (AArch64) ===\n");
     kprintf("[boot] MMU on, kernel image ends at %p\n", __kernel_end);
 
@@ -14,11 +13,16 @@ void kmain(void) {
     kprintf("[mm]   %lu MB free for pages, kernel heap %lu KB\n",
             (unsigned long)(pmm_free_pages() * PAGE_SIZE >> 20), 4096UL);
 
-    __asm__ volatile("msr vbar_el1, %0\n isb" :: "r"(vectors));
+#ifdef __aarch64__
+    __asm__ volatile("msr vbar_el1, %0\nisb" :: "r"(vectors));
+#endif
     gic_init();
     thread_init();
-    timer_init(100);                                /* 100 Hz = time slice 10 ms */
-    kprintf("[sched] preemptive round-robin, time slice 10 ms\n");
+    timer_init(100);                 /* 100 Hz = base tick 10 ms */
+    kprintf("[sched] %s\n", sched_mode_name());
+
+    audio_init_all();
+    kprintf("[audio] RP1 PWM0 + I2S0/DMA + BCM2712 vc4-hdmi (N=6144, CTS=74250, 48kHz) ready\n");
 
     blk_init();
     tarfs_init();
@@ -27,6 +31,8 @@ void kmain(void) {
     thread_create(net_thread, 0, "net");
     thread_create(shell_thread, 0, "shell");
 
-    __asm__ volatile("msr daifclr, #2");            /* Enable IRQs */
-    for (;;) __asm__ volatile("wfi");               /* thread 0 = idle */
+#ifdef __aarch64__
+    __asm__ volatile("msr daifclr, #2");        /* Enable IRQs */
+    for (;;) __asm__ volatile("wfi");           /* thread 0 = idle */
+#endif
 }

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System 1: Linux + Pi 5 Streaming (HLS.js + Nginx epoll)</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #0b0f17; color: #f3f4f6; }
+  header { padding: 1rem 1.5rem; background: #111827; border-bottom: 1px solid #1f2937; display: flex; justify-content: space-between; align-items: center; }
+  .badge { background: #10b981; color: #052e16; padding: 0.25rem 0.6rem; border-radius: 6px; font-weight: 800; font-size: 0.8rem; }
+  .container { max-width: 1100px; margin: 1.5rem auto; padding: 0 1.25rem; display: grid; grid-template-columns: 1fr 340px; gap: 1.25rem; }
+  @media (max-width: 860px) { .container { grid-template-columns: 1fr; } }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; overflow: hidden; }
+  video { width: 100%; aspect-ratio: 16/9; background: #000; display: block; }
+  .controls { padding: 1rem 1.25rem; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.65rem; }
+  button { background: #1f2937; color: #e5e7eb; border: 1px solid #374151; padding: 0.45rem 0.8rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.82rem; }
+  button.active { background: #10b981; color: #052e16; border-color: #10b981; }
+  .list-item { padding: 0.75rem 1rem; border-bottom: 1px solid #1f2937; cursor: pointer; }
+  .list-item:hover { background: #1f2937; }
+  pre { background: #090d14; padding: 0.75rem; border-radius: 8px; font-size: 0.8rem; color: #6ee7b7; overflow-x: auto; margin: 0.75rem 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <div><span class="badge">SYSTEM 1: LINUX + PI 5</span> <strong style="margin-left:8px">Nginx (epoll + sendfile) &amp; HLS Adaptive Streaming</strong></div>
+  <a href="http://localhost:8080" target="_blank" style="color:#38bdf8;font-size:0.88rem">Switch to System 2 (Custom AArch64 OS :8080) →</a>
+</header>
+<div class="container">
+  <div class="card">
+    <video id="video" controls playsinline></video>
+    <div class="controls">
+      <h2 id="title" style="margin:0;font-size:1.15rem">Select HLS Stream or Direct Play MP4</h2>
+      <div class="btn-row">
+        <button id="btnMaster" onclick="playHLS('/media/master.m3u8', 'HLS Adaptive Master (Auto 360p/720p)', this)">📡 HLS Auto (Master)</button>
+        <button id="btn720" onclick="playHLS('/media/hls_720p/index.m3u8', 'HLS 720p H.264 Stream', this)">🎬 HLS 720p</button>
+        <button id="btn360" onclick="playHLS('/media/hls_360p/index.m3u8', 'HLS 360p H.264 Stream', this)">📱 HLS 360p</button>
+      </div>
+      <pre id="stats">Ready. Run 'make hls' in linux-pi5/ to generate .m3u8/.ts segments, or click a Direct Play MP4 on the right.</pre>
+    </div>
+  </div>
+  <div class="card">
+    <div style="padding:0.9rem 1rem;border-bottom:1px solid #1f2937;font-weight:700">📁 Direct Play MP4 Files (HTTP 206)</div>
+    <div id="mp4List"></div>
+  </div>
+</div>
+<script>
+let hls = null;
+const video = document.getElementById('video');
+const stats = document.getElementById('stats');
+
+function setActive(btn) {
+  document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function playHLS(url, label, btn) {
+  setActive(btn);
+  document.getElementById('title').textContent = label;
+  if (hls) { hls.destroy(); hls = null; }
+  if (Hls.isSupported()) {
+    hls = new Hls();
+    hls.loadSource(url);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      stats.textContent = `HLS stream loaded: ${url}\nLevels: ${hls.levels.map(l => l.height + 'p').join(', ') || 'single-level'}`;
+      video.play().catch(() => {});
+    });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = url;
+    video.play().catch(() => {});
+  }
+}
+
+function playMP4(url, name) {
+  setActive(null);
+  if (hls) { hls.destroy(); hls = null; }
+  document.getElementById('title').textContent = `Direct Play: ${name}`;
+  video.src = url;
+  video.play().catch(() => {});
+  stats.textContent = `Direct Play MP4 via Nginx sendfile + epoll (HTTP 206 Range): ${url}`;
+}
+
+async function init() {
+  try {
+    const r = await fetch('/media/catalog.json');
+    const data = await r.json();
+    const list = document.getElementById('mp4List');
+    list.innerHTML = (data.mp4_files || []).map(f => `
+      <div class="list-item" onclick="playMP4('${f.url}', '${f.filename}')">
+        <div style="font-weight:600">▶️ ${f.filename}</div>
+        <div style="font-size:0.78rem;color:#9ca3af">${(f.size / (1024*1024)).toFixed(2)} MB • HTTP 206 Direct Play</div>
+      </div>
+    `).join('');
+    if (data.hls_master) {
+      playHLS(data.hls_master, 'HLS Adaptive Master (Auto 360p/720p)', document.getElementById('btnMaster'));
+    } else if (data.mp4_files && data.mp4_files.length > 0) {
+      playMP4(data.mp4_files[0].url, data.mp4_files[0].filename);
+    }
+  } catch (e) {}
+}
+init();
+</script>
+</body>
+</html>
