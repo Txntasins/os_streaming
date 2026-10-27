@@ -95,7 +95,11 @@ sudo apt install -y build-essential gcc-aarch64-linux-gnu binutils-aarch64-linux
 
 หลังจากติดตั้งเสร็จ เพื่อนที่ใช้ WSL2 สามารถใช้คำสั่งใน **หมวดที่ 3 ถึง หมวดที่ 8** ด้านล่างได้เหมือนเครื่อง Linux ทุกประการ
 
+<<<<<<< HEAD
+## Useful Docs
+=======
 ## หมวดที่ 3: คำสั่งจัดการ Custom OS & Cloud Video (`make ...`)
+>>>>>>> 9d6fa913760cf12d2d28eb88863f553258f44905
 
 **Path ที่ต้อง `cd` เข้าไปก่อนเสมอ:**
 
