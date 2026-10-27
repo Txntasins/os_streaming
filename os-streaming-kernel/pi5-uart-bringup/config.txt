@@ -14,3 +14,4 @@ kernel_address=0x40080000      # must match linker_pi5.ld's load address
 # boot_uart_hello.S hangs forever with ZERO output on screen or serial.
 enable_rp1_uart=1
 pciex4_reset=0
+dtparam=uart0_console

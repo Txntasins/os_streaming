@@ -1,13 +1,16 @@
-# Raspberry Pi 5 Bare-Metal HDMI Framebuffer + RP1 UART0 Config
+# Raspberry Pi 5 Bare-Metal HDMI Video + Audio + RP1 UART config.txt
 arm_64bit=1
 kernel=kernel8.img
-kernel_address=0x40080000
 
-# Keep RP1 PCIe link alive & enable RP1 UART0 (115200 8N1)
+# ห้าม Firmware รีเซ็ต PCIe link ไปหาชิป RP1 (จำเป็นมากสำหรับ UART0, GPIO, PWM0, I2S0 บน Pi 5)
 enable_rp1_uart=1
 pciex4_reset=0
+dtparam=uart0_console
 
-# Force HDMI output 1280x720 so VideoCore VII initializes framebuffer even if monitor wakes late
+# บังคับเปิดสัญญาณภาพและเสียงออกพอร์ต HDMI 0 (1280x720p @ 60Hz CEA Mode)
 hdmi_force_hotplug=1
+hdmi_drive=2
 hdmi_group=1
 hdmi_mode=4
+dtparam=audio=on
+dtparam=i2s=on
