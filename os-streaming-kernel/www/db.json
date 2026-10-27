@@ -43,7 +43,8 @@
       "year": 2026,
       "badge": "AUTO-INDEXED",
       "accent": "#0284c7",
-      "description": "Auto-indexed from www/TEST.mp4 (80.52 MB) via tarfs + HTTP 206 chunked streaming."
+      "description": "Auto-indexed from www/TEST.mp4 (80.52 MB) via tarfs + HTTP 206 chunked streaming.",
+      "cloud_url": "https://github.com/Txntasins/os_streaming/releases/download/cloud-videos/TEST.mp4"
     },
     "sample.mp4": {
       "title": "sample",
