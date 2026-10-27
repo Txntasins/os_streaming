@@ -21,6 +21,9 @@ void kmain(void) {
     timer_init(100);                 /* 100 Hz = base tick 10 ms */
     kprintf("[sched] %s\n", sched_mode_name());
 
+    audio_init_all();
+    kprintf("[audio] RP1 PWM0 + I2S0/DMA + BCM2712 vc4-hdmi (N=6144, CTS=74250, 48kHz) ready\n");
+
     blk_init();
     tarfs_init();
     net_init();

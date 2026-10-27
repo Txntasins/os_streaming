@@ -26,6 +26,11 @@ typedef uint64_t u64;
 #define MLFQ_LEVELS     4                       /* Q0 (highest, 10ms) .. Q3 (lowest, 80ms) */
 #define MLFQ_BOOST_TICKS 200                    /* Priority boost every 200 ticks (2.0 s) */
 
+/* ---------- Audio Backend Modes (Pi 5 RP1 / BCM2712) ---------- */
+#define AUDIO_BACKEND_PWM   0                   /* RP1 PWM0/PWM1 Audio (GPIO 12/13 or 18/19) */
+#define AUDIO_BACKEND_I2S   1                   /* RP1 DesignWare I2S0 + DMA0 -> PCM5102A DAC */
+#define AUDIO_BACKEND_HDMI  2                   /* BCM2712 VideoCore VII vc4-hdmi MAI + CEA-861 InfoFrame */
+
 /* ---------- MMIO / IRQ ---------- */
 static inline u32  rd32(u64 a)         { return *(volatile u32 *)a; }
 static inline void wr32(u64 a, u32 v)  { *(volatile u32 *)a = v; }
@@ -88,6 +93,17 @@ void timer_init(unsigned hz);
 void timer_rearm(void);
 u64  uptime_ms(void);
 u64  timer_ticks(void);
+
+/* ---------- Bare-Metal Audio Subsystem (PWM / I2S / HDMI vc4-hdmi) ---------- */
+void audio_init_all(void);
+void audio_cmd(const char *arg);
+int  audio_status_json(char *buf, size_t cap);
+void audio_submit_pcm16(const int16_t *samples, u32 frames, u32 sample_rate);
+u64  audio_MasterClock_us(void);
+
+/* ---------- Bare-Metal MJPEG Video Decoder + Kernel Timer A/V Sync ---------- */
+void avsync_cmd(const char *arg);
+int  avsync_status_json(char *buf, size_t cap);
 
 /* ---------- memory ---------- */
 void  mmu_init(void);

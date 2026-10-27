@@ -5,19 +5,21 @@
 extern char user_hello_start[], user_hello_end[];
 
 static void cmd_help(void) {
-    kprintf("  help            show all commands\n");
-    kprintf("  uptime          system uptime\n");
-    kprintf("  mem             memory status (page allocator + heap)\n");
-    kprintf("  ps              list of threads / processes (shows MLFQ priority queue Q0..Q3)\n");
-    kprintf("  sched [rr|mlfq] switch scheduler between Round-Robin and MLFQ at runtime\n");
-    kprintf("  bench           run in-kernel scheduler benchmark (context-switch ns + RR vs MLFQ)\n");
-    kprintf("  ls              files on disk (auto-syncs with disk.img)\n");
-    kprintf("  rescan          reload the file list after adding/deleting a video (no reboot needed)\n");
-    kprintf("  restart         restart kernel server & Cloudflare Tunnel (rebuilds disk.img + db.json)\n");
-    kprintf("  cat <file>      display file contents (text)\n");
-    kprintf("  ifconfig        device IP address\n");
-    kprintf("  run             run 1 user program (EL0) (type 'run 3' = 3 programs simultaneously)\n");
-    kprintf("  crash           test: make user program fault and see kernel handle it\n");
+    kprintf("  help                  show all commands\n");
+    kprintf("  uptime                system uptime\n");
+    kprintf("  mem                   memory status (page allocator + heap)\n");
+    kprintf("  ps                    list of threads / processes (shows MLFQ priority queue Q0..Q3)\n");
+    kprintf("  sched [rr|mlfq]       switch scheduler between Round-Robin and MLFQ at runtime\n");
+    kprintf("  bench                 run in-kernel scheduler benchmark (context-switch ns + RR vs MLFQ)\n");
+    kprintf("  audio [pwm|i2s|hdmi]  test bare-metal audio drivers (PWM0, I2S0+DMA, vc4-hdmi) or 'audio all'\n");
+    kprintf("  avsync [test|clean]   run MJPEG decoder + Kernel Timer A/V synchronization engine test\n");
+    kprintf("  ls                    files on disk (auto-syncs with disk.img)\n");
+    kprintf("  rescan                reload the file list after adding/deleting a video (no reboot needed)\n");
+    kprintf("  restart               restart kernel server & Cloudflare Tunnel (rebuilds disk.img + db.json)\n");
+    kprintf("  cat <file>            display file contents (text)\n");
+    kprintf("  ifconfig              device IP address\n");
+    kprintf("  run                   run 1 user program (EL0) (type 'run 3' = 3 programs simultaneously)\n");
+    kprintf("  crash                 test: make user program fault and see kernel handle it\n");
 }
 
 static void cmd_mem(void) {
@@ -97,37 +99,9 @@ static void run_line(char *line) {
             kprintf("  Current scheduler: %s\n  Usage: sched rr | sched mlfq\n", sched_mode_name());
         }
     }
-    else if (!strcmp(line, "bench")) {
-        sched_run_benchmark();
-    }
-    else if (!strcmp(line, "sched")) {
-        if (!strcmp(arg, "rr")) {
-            sched_set_mode(SCHED_RR);
-            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
-        } else if (!strcmp(arg, "mlfq")) {
-            sched_set_mode(SCHED_MLFQ);
-            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
-        } else {
-            kprintf("  Current scheduler: %s\n  Usage: sched rr | sched mlfq\n", sched_mode_name());
-        }
-    }
-    else if (!strcmp(line, "bench")) {
-        sched_run_benchmark();
-    }
-    else if (!strcmp(line, "sched")) {
-        if (!strcmp(arg, "rr")) {
-            sched_set_mode(SCHED_RR);
-            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
-        } else if (!strcmp(arg, "mlfq")) {
-            sched_set_mode(SCHED_MLFQ);
-            kprintf("  Switched scheduler to: %s\n", sched_mode_name());
-        } else {
-            kprintf("  Current scheduler: %s\n  Usage: sched rr | sched mlfq\n", sched_mode_name());
-        }
-    }
-    else if (!strcmp(line, "bench")) {
-        sched_run_benchmark();
-    }
+    else if (!strcmp(line, "bench"))    sched_run_benchmark();
+    else if (!strcmp(line, "audio"))    audio_cmd(arg);
+    else if (!strcmp(line, "avsync"))   avsync_cmd(arg);
     else if (!strcmp(line, "rescan"))   { int n = tarfs_rescan(); kprintf("  %d file(s) now visible\n", n < 0 ? 0 : n); }
     else if (!strcmp(line, "restart") || !strcmp(line, "reboot")) {
         kprintf("  [restart] Syncing disk.img + db.json and restarting server & Cloudflare tunnel...\n");

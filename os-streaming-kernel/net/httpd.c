@@ -351,6 +351,22 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
         sys_restart();
         return;
     }
+    if (!strcmp(path, "/api/audio")) {
+        hs->mem = kmalloc(1024);
+        if (!hs->mem) { hs_close(hs, pcb); return; }
+        int n = audio_status_json(hs->mem, 1024);
+        hs->remaining = (u64)(n > 0 ? n : 0);
+        respond(hs, pcb, 200, "application/json; charset=utf-8", hs->remaining, 0, hs->remaining, 0, head_only);
+        return;
+    }
+    if (!strcmp(path, "/api/avsync")) {
+        hs->mem = kmalloc(1024);
+        if (!hs->mem) { hs_close(hs, pcb); return; }
+        int n = avsync_status_json(hs->mem, 1024);
+        hs->remaining = (u64)(n > 0 ? n : 0);
+        respond(hs, pcb, 200, "application/json; charset=utf-8", hs->remaining, 0, hs->remaining, 0, head_only);
+        return;
+    }
     if (!strcmp(path, "/api/rescan")) {
         int nf = tarfs_rescan();
         hs->mem = kmalloc(128);
