@@ -5,3 +5,4 @@ disk.img
 *.elf
 www/TEST1HR.mp4
 www/WANNALISTEN2.mp4
+linux-pi5/media/*.mp4

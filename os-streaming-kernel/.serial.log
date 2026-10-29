@@ -6,24 +6,35 @@
 [audio] RP1 PWM0 + I2S0/DMA + BCM2712 vc4-hdmi (N=6144, CTS=74250, 48kHz) ready
 [blk]  virtio-blk slot 31 (v1): 8388608 sectors (4096 MB)
 [fs]   tarfs: found 7 files
-           84426644  TEST.mp4
-           44774978  JUSTWANNALISTENSONG.mp4
-               2463  db.json
+           84356672  TEST.mp4
+           44673964  JUSTWANNALISTENSONG.mp4
+               2905  db.json
              157639  sample.mp4
           360286715  TEST1HR.mp4
-          120188807  WANNALISTEN2.mp4
+          120054539  WANNALISTEN2.mp4
               24769  index.html
 [net]  virtio-net slot 30 (v1) MAC 52:54:00:12:34:56
 [net]  lwIP is ready IP 10.0.2.15, HTTP server at port 80
 
 Type help to see commands
-os> ls
-    84426644  TEST.mp4
-    44774978  JUSTWANNALISTENSONG.mp4
-        2463  db.json
-      157639  sample.mp4
-   360286715  TEST1HR.mp4
-   120188807  WANNALISTEN2.mp4
-       24769  index.html
+os> mem
+  page allocator: 59573 / 60645 pages free (232 MB free)
+  kernel heap   : 0 bytes in use
+os> help
+  help                  show all commands
+  uptime                system uptime
+  mem                   memory status (page allocator + heap)
+  ps                    list of threads / processes (shows MLFQ priority queue Q0..Q3)
+  sched [rr|mlfq]       switch scheduler between Round-Robin and MLFQ at runtime
+  bench                 run in-kernel scheduler benchmark (context-switch ns + RR vs MLFQ)
+  audio [pwm|i2s|hdmi]  test bare-metal audio drivers (PWM0, I2S0+DMA, vc4-hdmi) or 'audio all'
+  avsync [test|clean]   run MJPEG decoder + Kernel Timer A/V synchronization engine test
+  ls                    files on disk (auto-syncs with disk.img)
+  rescan                reload the file list after adding/deleting a video (no reboot needed)
+  restart               restart kernel server & Cloudflare Tunnel (rebuilds disk.img + db.json)
+  cat <file>            display file contents (text)
+  ifconfig              device IP address
+  run                   run 1 user program (EL0) (type 'run 3' = 3 programs simultaneously)
+  crash                 test: make user program fault and see kernel handle it
 os> QEMU: Terminated
 

@@ -15,3 +15,4 @@ kernel_address=0x40080000      # must match linker_pi5.ld's load address
 enable_rp1_uart=1
 pciex4_reset=0
 dtparam=uart0_console
+dtparam=uart0=on
