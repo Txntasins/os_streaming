@@ -382,7 +382,7 @@ static void handle_request(struct hs *hs, struct tcp_pcb *pcb) {
             u64 kb = 0;
             const char *p = query + 3;
             while (isdigit(*p)) kb = kb * 10 + (*p++ - '0');
-            if (kb >= 256 && kb <= 8192) video_chunk_bytes = kb * 1024UL;
+            if (kb >= 64 && kb <= 8192) video_chunk_bytes = kb * 1024UL;
         }
         hs->mem = kmalloc(128);
         if (!hs->mem) { hs_close(hs, pcb); return; }
